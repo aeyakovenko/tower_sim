@@ -1,4 +1,3 @@
-const NUM_NODES: usize = 10_000;
 const DEPTH: usize = 32;  
 
 type Slot: u64;
@@ -37,42 +36,34 @@ impl Tower {
             }
         }
         self.votes.push_front(vote);
-        for (i,v) in self.votes.iter_mut().enumerate() {
-            if i + 1 >= self.votes.len() {
+        for (i,v) in 1..DEPTH {
+            if i >= self.votes.len() {
                 break;
             }
-            if v.lockout * 2 == self.votes[i + 1] {
+            if v.lockout == self.votes[i - 1].lockout {
                 v.lockout = v.lockout * 2;
             }
         }
-        let mut pop = false;
+        let mut root = false;
         if Some(oldest) = self.votes.back() {
             if oldest.lockout == 1<<DEPTH {
                 self.root = *oldest;
-                pop = true;       
+                root = true;       
             }
         }
-        if pop {
+        if root {
             self.votes.pop_back();
         }
     }
-}
 
-
-struct Bank {
-    nodes: [Tower, NUM_NODES];
-}
-
-impl Bank {
-    fn apply(&mut self, id: usize, vote: &Vote) {
-        self.nodes[id].apply(vote); 
+    fn locked_out(&self, slot: Slot, height: Slot) -> bool {
+        for v in self.votes {
+            if v.slot >= slot && v.slot + v.lockout >= height {
+                return true;
+            }
+        }
+        false
     }
 }
-struct Node {
-    id: usize,
-    banks: HashMap<Slot, (Bank, Slot)>
-}
 
-struct Network {
-    nodes: [Node; NUM_NODES];
-}
+
