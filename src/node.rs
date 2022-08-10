@@ -71,12 +71,19 @@ impl Node {
         }
     }
     fn gc(&mut self) {
-        let gc = self.banks.keys().to_vec();
-        for i in gc {
-            if i < self.root.slot {
-                self.banks.remove(i);
-            }
+        let mut valid = vec![];
+        let mut children = vec![self.root.slot];
+        while !children.is_empty() {
+            let slot = children.pop();
+            valid.push(slot);
+            let bank = self.banks.get(slot).unwrap();
+            children.append(bank.children.clone());
         }
+        let mut new_banks = HashMap::new(); 
+        for v in valid {
+            new_banks.insert(v, banks.remove(v).unwrap());
+        }
+        self.banks = new_banks;
     }
     fn fork_weights(&self, height: Slot) -> HashMap<Slot, usize> {
         let weigths: HashMap<Slot, HashSet<ID>> = HashMap::new();
