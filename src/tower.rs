@@ -49,12 +49,14 @@ impl Tower {
                 if recent.slot == vote.slot {
                     return;
                 }
-                if recent.slot + recent.lockout < vote.slot {
-                    self.votes.pop_front();
+                //still locked out
+                if recent.slot + recent.lockout >= vote.slot {
+                    break;
                 }
             } else {
                 break;
             }
+            self.votes.pop_front();
         }
         self.votes.push_front(vote.clone());
         for i in 1..DEPTH {

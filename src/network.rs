@@ -58,10 +58,12 @@ impl Network {
     }
     pub fn step(&mut self) {
         self.slot = self.slot + 1;
+        println!("slot {} voting", self.slot);
         for n in &mut self.nodes {
             n.vote();
         }
         let block_producer_ix = Self::hash(self.slot) as usize % self.nodes.len();
+        println!("bp {}", block_producer_ix);
         let block_producer = &self.nodes[block_producer_ix];
         let heaviest_fork = &block_producer.heaviest_fork;
         let mut votes = vec![];

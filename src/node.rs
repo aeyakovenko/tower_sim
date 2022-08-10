@@ -5,7 +5,7 @@ use std::collections::HashMap;
 const THRESHOLD: usize = 8;
 
 pub struct Node {
-    id: ID,
+    pub id: ID,
     pub supermajority_root: Vote,
     banks: HashMap<Slot, Bank>,
     tower: Tower,
