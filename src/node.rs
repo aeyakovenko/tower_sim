@@ -73,17 +73,12 @@ impl Node {
         let mut weights: HashMap<Slot, usize> = HashMap::new();
         let mut children = vec![self.supermajority_root.slot];
         while !children.is_empty() {
-            let b = children.pop().unwrap();
-            let bank = self.banks.get(&b).unwrap();
+            let child = children.pop().unwrap();
+            let bank = self.banks.get(&child).unwrap();
             children.extend_from_slice(&bank.children);
-            let parent_weight = *self
-                .banks
-                .get(&bank.parent)
-                .map(|parent| weights.get(&parent.parent))
-                .flatten()
-                .unwrap_or(&0);
-            let e = weights.entry(bank.parent).or_insert(parent_weight);
-            *e = *e + *slot_votes.get(&bank.parent).unwrap_or(&0);
+            let parent_weight = *weights.get(&bank.parent).unwrap_or(&0);
+            let e = weights.entry(child).or_insert(parent_weight);
+            *e = *e + *slot_votes.get(&child).unwrap_or(&0);
         }
         weights
     }
@@ -103,7 +98,11 @@ impl Node {
     fn compute_fork(&self, slot: Slot) -> Vec<Slot> {
         let mut fork = vec![slot];
         loop {
-            if let Some(b) = self.banks.get(fork.last().unwrap()) {
+            let last = fork.last().unwrap();
+            if let Some(b) = self.banks.get(last) {
+                if *last == b.parent {
+                    break;
+                }
                 fork.push(b.parent)
             } else {
                 break;
