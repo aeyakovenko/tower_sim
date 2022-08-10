@@ -29,8 +29,9 @@ impl Default for Tower {
 }
 
 impl Tower {
-    fn apply(&mut self, vote: &Vote) {
+    pub fn apply(&mut self, vote: &Vote) {
         assert_eq!(vote.lockout, 2);
+        //pop all the expired votes
         while !self.votes.is_empty() {
             let mut pop = false;
             if let Some(recent) = self.votes.front() {
@@ -47,8 +48,9 @@ impl Tower {
             if i >= self.votes.len() {
                 break;
             }
-            if v.lockout == self.votes[i - 1].lockout {
-                v.lockout = v.lockout * 2;
+            //double this lockout if the previous one is equal to this one
+            if self.votes[i].lockout == self.votes[i - 1].lockout {
+                self.votes[i].lockout = self.votes[i].lockout * 2;
             }
         }
         let mut root = false;
@@ -63,7 +65,7 @@ impl Tower {
         }
     }
 
-    fn latest_vote(&self) -> Vote {
+    pub fn latest_vote(&self) -> Vote {
         self.votes.front().unwrap_or(&self.root).clone()
     }
 }
