@@ -1,4 +1,4 @@
-use tower::{Tower, Slot};
+use tower::{Slot, Tower};
 
 const NUM_NODES: usize = 10_000;
 type ID: usize;
@@ -19,40 +19,40 @@ struct Block {
 
 impl Bank {
     fn child(&mut self, slot: u64) -> Self {
-        Bank {
+        let b = Bank {
             nodes: self.nodes.clone(),
             slot,
             parent: self.slot,
-        }
+        };
         self.children.push(slot);
+        b
     }
     fn apply(&mut self, block: &Block) {
         assert_eq!(self.slot, block.slot);
         assert_eq!(self.parent, block.parent);
         for v in block.votes {
-            self.nodes[v.id].apply(v.vote); 
+            self.nodes[v.id].apply(v.vote);
         }
     }
     fn root(&self) -> Vote {
         self.nodes[self.id].root
     }
     //check how many nodes have voted on parent and are still locked out at height
-    fn weight(&self, height: Slot) -> HashSet<ID> {
-        let set = HashSet::new();
-        for (i,n) in &nodes.enumerate() {
-            if n.tower.locked_out(self.parent, height) {
-                set.insert(i);
+    fn latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
+        for (i, n) in &nodes.enumerate() {
+            let latest = n.latest_vote();
+            let e = latest_vote.entry(i).or_insert(latest);
+            if *e < latest {
+                *e = latest;
             }
         }
-        set
     }
 }
-
 
 struct Node {
     id: ID,
     root: Vote,
-    banks: HashMap<Slot, Bank>
+    banks: HashMap<Slot, Bank>,
 }
 
 impl Node {
@@ -79,26 +79,39 @@ impl Node {
             let bank = self.banks.get(slot).unwrap();
             children.append(bank.children.clone());
         }
-        let mut new_banks = HashMap::new(); 
+        let mut new_banks = HashMap::new();
         for v in valid {
             new_banks.insert(v, banks.remove(v).unwrap());
         }
         self.banks = new_banks;
     }
     fn fork_weights(&self, height: Slot) -> HashMap<Slot, usize> {
-        let weigths: HashMap<Slot, HashSet<ID>> = HashMap::new();
-        //recurse through all the root children
+        //each validators latest votes
+        let mut latest_votes: HashMap<ID, Slot> = HashMap::new();
+        for v in self.banks.values() {
+            v.latest_votes(&mut latest_votes);
+        }
+        //total stake voting per slot
+        let slot_votes: HashMap<Slot, usize> = HashMap::new();
+        for (k, v) in &latest_votes {
+            e = slot_votes.entry(v).or_insert(0);
+            *e = *e + 1;
+        }
+        //stake weight is inherited from the parent
+        let mut weights: HashMap<Slot, u64> = HashMap::new();
         let mut children = vec![self.root.slot];
         while !children.is_empty() {
-            let slot = children.pop();
-            let bank = self.banks.get(slot).unwrap();
+            let b = children.pop();
+            let bank = self.banks.get(b);
             children.append(bank.children.clone());
-            let mut weight = bank.weight(height);
-            //inherit the parent
-            weight.append(weights[bank.parent].clone());
-            weights.insert(slot, weight);
+            let parent_weight = self
+                .banks
+                .get(bank.parent)
+                .flat_map(|parent| weights.get(parent.parent))
+                .unwrap_or(0);
+            let e = weights.entry(bank.parent).or_insert(parent_weight);
+            *e = *e + slot_votes.get(bank.parent).unwrap_or(0);
         }
-        weights.into_iter().map(|(k,v)| (k,v.len())).collect()
+        weight
     }
 }
-
