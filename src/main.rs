@@ -1,6 +1,9 @@
 use tower_sim::network;
 
 fn main() {
-    let network = network::Network::default();
-    println!("Hello, world!");
+    let mut network = network::Network::default();
+    for slot in 0..1_000_000 {
+        println!("slot {}", slot);
+        network.step()
+    }
 }
