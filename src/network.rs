@@ -1,4 +1,4 @@
-use crate::node::NUM_NODES;
+use crate::bank::NUM_NODES;
 use crate::node::Node;
 
 

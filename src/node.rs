@@ -1,5 +1,5 @@
 use crate::tower::{Slot, Vote};
-use crate::bank::{Bank, Block};
+use crate::bank::{Bank, Block, ID};
 use std::collections::HashMap;
 
 pub struct Node {
@@ -34,10 +34,14 @@ impl Node {
         }
         let mut new_banks = HashMap::new();
         for v in valid {
-            new_banks.insert(v, *banks.remove(v).unwrap());
+            new_banks.insert(v, self.banks.remove(&v).unwrap());
         }
         self.banks = new_banks;
     }
+
+    /// A validator V's vote on an ancestor X counts towards a descendant 
+    /// Y even if the validator is not locked out on X at Y anymore,
+    /// as long as X is the latest vote observed from this validator V 
     fn fork_weights(&self) -> HashMap<Slot, usize> {
         //each validators latest votes
         let mut latest_votes: HashMap<ID, Slot> = HashMap::new();
@@ -45,9 +49,9 @@ impl Node {
             v.latest_votes(&mut latest_votes);
         }
         //total stake voting per slot
-        let slot_votes: HashMap<Slot, usize> = HashMap::new();
-        for (k, v) in &latest_votes {
-            e = slot_votes.entry(v).or_insert(0);
+        let mut slot_votes: HashMap<Slot, usize> = HashMap::new();
+        for (_, v) in &latest_votes {
+            let e = slot_votes.entry(*v).or_insert(0);
             *e = *e + 1;
         }
         //stake weight is inherited from the parent

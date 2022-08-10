@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 
 pub const NUM_NODES: usize = 10_000;
-type ID = usize;
+pub type ID = usize;
 
 pub struct Bank {
     pub id: ID,
