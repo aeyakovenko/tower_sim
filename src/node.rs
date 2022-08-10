@@ -2,6 +2,8 @@ use crate::bank::{Bank, Block, ID};
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 
+const THRESHOLD: usize = 8;
+
 pub struct Node {
     id: ID,
     pub supermajority_root: Vote,
@@ -74,6 +76,15 @@ impl Node {
         weights
     }
     fn threshold_check(&self, tower: &Tower) -> bool {
+        let vote = tower.votes.front().unwrap();
+        let bank = self.banks.get(&vote.slot).unwrap();
+        for v in &tower.votes {
+            if v.lockout > 1<<THRESHOLD {
+                if !bank.supermajority_slot(&vote) {
+                    return false;
+                }
+            }
+        }
         true
     }
     fn optimistic_conf_check(&self, tower: &Tower) -> bool {
