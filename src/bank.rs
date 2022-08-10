@@ -1,7 +1,7 @@
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 
-pub const NUM_NODES: usize = 10_000;
+pub const NUM_NODES: usize = 1_000;
 pub type ID = usize;
 
 pub struct Bank {

@@ -1,5 +1,6 @@
 use crate::bank::Block;
 use crate::bank::ID;
+use crate::tower::Vote;
 use crate::bank::NUM_NODES;
 use crate::node::Node;
 use crate::tower::Slot;
@@ -51,6 +52,9 @@ impl Network {
         }
         self.num_partitions = 0;
         self.partitioned_blocks = VecDeque::new();
+    }
+    pub fn root(&self) -> Option<Vote> {
+        self.nodes.iter().map(|n| n.supermajority_root).min()
     }
     pub fn step(&mut self) {
         self.slot = self.slot + 1;

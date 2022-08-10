@@ -3,7 +3,7 @@ pub const DEPTH: usize = 16;
 
 pub type Slot = u64;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialOrd, PartialEq, Eq, Ord, Debug)]
 pub struct Vote {
     pub slot: Slot,
     pub lockout: u64,
