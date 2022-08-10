@@ -1,21 +1,25 @@
-const DEPTH: usize = 32;
+use std::collections::VecDeque;
+pub const DEPTH: usize = 16;
 
-type Slot: u64;
 
-struct Vote {
-    slot: Slot,
-    lockout: u64,
+pub type Slot = u64;
+
+#[derive(Clone)]
+pub struct Vote {
+    pub slot: Slot,
+    pub lockout: u64,
 }
 
-struct Tower {
-    votes: VecDeque<(Votes, DEPTH)>,
-    root: Vote,
+#[derive(Clone)]
+pub struct Tower {
+    votes: VecDeque<Vote>,
+    pub root: Vote,
 }
 
 impl Default for Tower {
     fn default() -> Self {
         Tower {
-            votes: VecDeque: with_capacity(DEPTH),
+            votes: VecDeque::with_capacity(DEPTH),
             root: Vote {
                 slot: 0,
                 lockout: 1 << DEPTH,
@@ -26,7 +30,7 @@ impl Default for Tower {
 
 impl Tower {
     fn apply(&mut self, vote: &Vote) {
-        assert!(vote.lockout = 2);
+        assert_eq!(vote.lockout, 2);
         while !self.votes.is_empty() {
             let mut pop = false;
             if let Some(recent) = self.votes.front() {
@@ -38,8 +42,8 @@ impl Tower {
                 self.votes.pop_front();
             }
         }
-        self.votes.push_front(vote);
-        for (i, v) in 1..DEPTH {
+        self.votes.push_front(vote.clone());
+        for i in 1..DEPTH {
             if i >= self.votes.len() {
                 break;
             }
@@ -48,7 +52,7 @@ impl Tower {
             }
         }
         let mut root = false;
-        if Some(oldest) = self.votes.back() {
+        if let Some(oldest) = self.votes.back() {
             if oldest.lockout == 1 << DEPTH {
                 self.root = *oldest;
                 root = true;
@@ -60,6 +64,6 @@ impl Tower {
     }
 
     fn latest_vote(&self) -> Vote {
-        self.votes.front().unwrap_or(self.root)
+        self.votes.front().unwrap_or(&self.root).clone()
     }
 }
