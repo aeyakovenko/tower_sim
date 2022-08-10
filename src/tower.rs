@@ -42,15 +42,18 @@ impl Tower {
     pub fn apply(&mut self, vote: &Vote) {
         assert_eq!(vote.lockout, 2);
         //pop all the expired votes
-        while !self.votes.is_empty() {
-            let mut pop = false;
+        loop {
             if let Some(recent) = self.votes.front() {
-                if recent.slot + recent.lockout < vote.slot {
-                    pop = true;
+                //apply only new votes
+                assert!(recent.slot <= vote.slot);
+                if recent.slot == vote.slot {
+                    return;
                 }
-            }
-            if pop {
-                self.votes.pop_front();
+                if recent.slot + recent.lockout < vote.slot {
+                    self.votes.pop_front();
+                }
+            } else {
+                break;
             }
         }
         self.votes.push_front(vote.clone());

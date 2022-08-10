@@ -9,6 +9,7 @@ pub struct Node {
     pub supermajority_root: Vote,
     banks: HashMap<Slot, Bank>,
     tower: Tower,
+    pub heaviest_fork: Vec<Slot>,
 }
 
 impl Node {
@@ -79,7 +80,7 @@ impl Node {
         let vote = tower.votes.front().unwrap();
         let bank = self.banks.get(&vote.slot).unwrap();
         for v in &tower.votes {
-            if v.lockout > 1<<THRESHOLD {
+            if v.lockout > 1 << THRESHOLD {
                 if !bank.supermajority_slot(&vote) {
                     return false;
                 }
@@ -100,7 +101,11 @@ impl Node {
         fork
     }
 
-    fn optimistic_conf_check(&self, new_fork: &[Slot], fork_weights: &HashMap<Slot, usize>) -> bool {
+    fn optimistic_conf_check(
+        &self,
+        new_fork: &[Slot],
+        fork_weights: &HashMap<Slot, usize>,
+    ) -> bool {
         // no votes left in tower
         if self.tower.votes.front().is_none() {
             return true;
@@ -110,7 +115,7 @@ impl Node {
         // no switching proof is necessary
         if new_fork.iter().find(|x| **x == last_vote.slot).is_some() {
             return true;
-        } 
+        }
         //all the recent forks but those decending from the last vote must have > 1/3 votes
         let mut total = 0;
         for (slot, stake) in fork_weights {
@@ -126,7 +131,10 @@ impl Node {
         }
         total > NUM_NODES / 3
     }
-    pub fn vote(&mut self) -> Option<Vote> {
+    pub fn last_vote(&self) -> &Vote {
+        self.tower.votes.front().unwrap_or(&self.tower.root)
+    }
+    pub fn vote(&mut self) {
         let weights = self.fork_weights();
         let heaviest_slot = weights
             .iter()
@@ -135,7 +143,8 @@ impl Node {
             .map(|(_, y)| *y)
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
-        let fork = self.compute_fork(heaviest_slot);
+        let heaviest_fork = self.compute_fork(heaviest_slot);
+        self.heaviest_fork = heaviest_fork;
         let mut tower = self.tower.clone();
         let vote = Vote {
             slot: heaviest_slot,
@@ -145,16 +154,21 @@ impl Node {
         tower.apply(&vote);
         //the most recent unexpired vote must be in the heaviest fork
         //of this is the first vote in tower
-        if tower.votes.len() > 1 && fork.iter().find(|x| **x == tower.votes[1].slot).is_none() {
-            return None;
+        if tower.votes.len() > 1
+            && self
+                .heaviest_fork
+                .iter()
+                .find(|x| **x == tower.votes[1].slot)
+                .is_none()
+        {
+            return;
         }
         if !self.threshold_check(&tower) {
-            return None;
+            return;
         }
-        if !self.optimistic_conf_check(&fork, &weights) {
-            return None;
+        if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
+            return;
         }
         self.tower = tower;
-        return Some(vote);
     }
 }

@@ -38,15 +38,19 @@ impl Bank {
         }
     }
     pub fn supermajority_slot(&self, vote: &Vote) -> bool {
-        let count: usize = self.nodes.iter().map(|n| {
-            for v in &n.votes {
-                if v.slot >= vote.slot && v.lockout >= vote.lockout {
-                    return 1;
+        let count: usize = self
+            .nodes
+            .iter()
+            .map(|n| {
+                for v in &n.votes {
+                    if v.slot >= vote.slot && v.lockout >= vote.lockout {
+                        return 1;
+                    }
                 }
-            }
-            0
-        }).sum();
-        count > (2*NUM_NODES) / 3
+                0
+            })
+            .sum();
+        count > (2 * NUM_NODES) / 3
     }
     pub fn supermajority_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
