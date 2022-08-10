@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 pub const DEPTH: usize = 16;
 
-
 pub type Slot = u64;
 
 #[derive(Clone, Copy)]
@@ -9,10 +8,21 @@ pub struct Vote {
     pub slot: Slot,
     pub lockout: u64,
 }
+impl Vote {
+    pub fn new(slot: Slot) -> Self {
+        Vote { slot, lockout: 2 }
+    }
+    pub fn zero() -> Self {
+        Vote {
+            slot: 0,
+            lockout: 1 << DEPTH,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Tower {
-    votes: VecDeque<Vote>,
+    pub votes: VecDeque<Vote>,
     pub root: Vote,
 }
 

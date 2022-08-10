@@ -1,7 +1,6 @@
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 
-
 pub const NUM_NODES: usize = 10_000;
 pub type ID = usize;
 
@@ -38,8 +37,11 @@ impl Bank {
             self.nodes[*id].apply(vote);
         }
     }
-    pub fn root(&self) -> Vote {
-        self.nodes[self.id].root
+    pub fn supermajority_root(&self) -> Vote {
+        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
+        roots.sort_by_key(|x| x.slot);
+        //2/3 of the nodes are at least at this root
+        roots[NUM_NODES / 3]
     }
     //get the latest votes from each node
     pub fn latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
@@ -52,5 +54,3 @@ impl Bank {
         }
     }
 }
-
-
