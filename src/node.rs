@@ -1,4 +1,4 @@
-use crate::bank::{Bank, Block, ID};
+use crate::bank::{Bank, Block, ID, NUM_NODES};
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 
@@ -87,8 +87,44 @@ impl Node {
         }
         true
     }
-    fn optimistic_conf_check(&self, tower: &Tower) -> bool {
-        true
+
+    fn compute_fork(&self, slot: Slot) -> Vec<Slot> {
+        let mut fork = vec![slot];
+        loop {
+            if let Some(b) = self.banks.get(fork.last().unwrap()) {
+                fork.push(b.parent)
+            } else {
+                break;
+            }
+        }
+        fork
+    }
+
+    fn optimistic_conf_check(&self, new_fork: &[Slot], fork_weights: &HashMap<Slot, usize>) -> bool {
+        // no votes left in tower
+        if self.tower.votes.front().is_none() {
+            return true;
+        }
+        let last_vote = self.tower.votes.front().unwrap();
+        // if the last vote is a decendant of the new fork
+        // no switching proof is necessary
+        if new_fork.iter().find(|x| **x == last_vote.slot).is_some() {
+            return true;
+        } 
+        //all the recent forks but those decending from the last vote must have > 1/3 votes
+        let mut total = 0;
+        for (slot, stake) in fork_weights {
+            if *slot <= last_vote.slot {
+                //slot is older than last vote
+                continue;
+            }
+            let fork = self.compute_fork(*slot);
+            if fork.iter().find(|x| **x == last_vote.slot).is_none() {
+                //slot is not a child of the last vote
+                total += stake;
+            }
+        }
+        total > NUM_NODES / 3
     }
     pub fn vote(&mut self) -> Option<Vote> {
         let weights = self.fork_weights();
@@ -99,14 +135,7 @@ impl Node {
             .map(|(_, y)| *y)
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
-        let mut fork = vec![heaviest_slot];
-        loop {
-            if let Some(b) = self.banks.get(fork.last().unwrap()) {
-                fork.push(b.parent)
-            } else {
-                break;
-            }
-        }
+        let fork = self.compute_fork(heaviest_slot);
         let mut tower = self.tower.clone();
         let vote = Vote {
             slot: heaviest_slot,
@@ -122,7 +151,7 @@ impl Node {
         if !self.threshold_check(&tower) {
             return None;
         }
-        if !self.optimistic_conf_check(&tower) {
+        if !self.optimistic_conf_check(&fork, &weights) {
             return None;
         }
         self.tower = tower;
