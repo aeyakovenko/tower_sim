@@ -13,6 +13,17 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn zero(id: ID) -> Self {
+        let mut banks = HashMap::new();
+        banks.insert(0, Bank::zero(id));
+        Node {
+            id,
+            supermajority_root: Vote::zero(),
+            banks,
+            tower: Tower::default(),
+            heaviest_fork: vec![0],
+        }
+    }
     pub fn apply(&mut self, block: &Block) {
         assert!(self.banks.get(&block.slot).is_none());
         let parent = self.banks.get_mut(&block.parent).unwrap();
