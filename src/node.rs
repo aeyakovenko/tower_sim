@@ -73,6 +73,12 @@ impl Node {
         }
         weights
     }
+    fn threshold_check(&self, tower: &Tower) -> bool {
+        true
+    }
+    fn optimistic_conf_check(&self, tower: &Tower) -> bool {
+        true
+    }
     pub fn vote(&mut self) -> Option<Vote> {
         let weights = self.fork_weights();
         let heaviest_slot = weights
@@ -98,14 +104,17 @@ impl Node {
         //apply this vote and expire all the old votes
         tower.apply(&vote);
         //the most recent unexpired vote must be in the heaviest fork
-        let mut valid = true;
-        if tower.votes.len() > 1 {
-            valid = fork.iter().find(|x| **x == tower.votes[1].slot).is_some();
+        //of this is the first vote in tower
+        if tower.votes.len() > 1 && fork.iter().find(|x| **x == tower.votes[1].slot).is_none() {
+            return None;
         }
-        if valid {
-            self.tower = tower;
-            return Some(vote);
+        if !self.threshold_check(&tower) {
+            return None;
         }
-        None
+        if !self.optimistic_conf_check(&tower) {
+            return None;
+        }
+        self.tower = tower;
+        return Some(vote);
     }
 }
