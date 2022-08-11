@@ -1,9 +1,9 @@
 use crate::bank::Block;
 use crate::bank::ID;
-use crate::tower::Vote;
 use crate::bank::NUM_NODES;
 use crate::node::Node;
 use crate::tower::Slot;
+use crate::tower::Vote;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};

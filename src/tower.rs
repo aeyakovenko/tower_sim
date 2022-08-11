@@ -84,3 +84,98 @@ impl Tower {
         self.votes.front().unwrap_or(&self.root).clone()
     }
 }
+
+#[test]
+fn test_apply() {
+    let mut t = Tower::default();
+    let v = Vote {
+        slot: 1,
+        lockout: 2,
+    };
+    t.apply(&v);
+    assert_eq!(t.latest_vote(), v);
+}
+
+#[test]
+fn test_root() {
+    let mut t = Tower::default();
+    for i in 1..(DEPTH + 1) {
+        let v = Vote {
+            slot: i as u64,
+            lockout: 2,
+        };
+        t.apply(&v);
+    }
+    let root = Vote {
+        slot: 1,
+        lockout: 1 << DEPTH,
+    };
+    assert_eq!(t.root, root);
+}
+
+#[test]
+fn test_pop_votes() {
+    let mut t = Tower::default();
+    for i in 1..DEPTH {
+        let v = Vote {
+            slot: i as u64,
+            lockout: 2,
+        };
+        t.apply(&v);
+    }
+    let root = Vote {
+        slot: 0,
+        lockout: 1 << DEPTH,
+    };
+    assert_eq!(t.root, root);
+    let mut test_votes: VecDeque<_> = (1..DEPTH)
+        .into_iter()
+        .map(|x| Vote {
+            slot: DEPTH as u64 - x as u64,
+            lockout: 1 << x,
+        })
+        .collect();
+    assert_eq!(t.votes, test_votes);
+
+    let vote = Vote {
+        slot: DEPTH as u64 + 8,
+        lockout: 2,
+    };
+    t.apply(&vote);
+    assert_eq!(t.root, root);
+    let _ = test_votes.pop_front();
+    let _ = test_votes.pop_front();
+    let _ = test_votes.pop_front();
+    test_votes.push_front(vote);
+    assert_eq!(t.votes, test_votes);
+
+    let vote = Vote {
+        slot: DEPTH as u64 + 9,
+        lockout: 2,
+    };
+    t.apply(&vote);
+    test_votes.push_front(vote);
+    test_votes[1].lockout = 2 * test_votes[1].lockout;
+    assert_eq!(t.votes, test_votes);
+
+    let vote = Vote {
+        slot: DEPTH as u64 + 10,
+        lockout: 2,
+    };
+    t.apply(&vote);
+    test_votes.push_front(vote);
+    test_votes[1].lockout = 2 * test_votes[1].lockout;
+    test_votes[2].lockout = 2 * test_votes[2].lockout;
+    assert_eq!(t.votes, test_votes);
+
+    let vote = Vote {
+        slot: DEPTH as u64 + 11,
+        lockout: 2,
+    };
+    t.apply(&vote);
+    let root = Vote {
+        slot: 1,
+        lockout: 1 << DEPTH,
+    };
+    assert_eq!(t.root, root);
+}
