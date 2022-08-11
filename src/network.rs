@@ -63,22 +63,19 @@ impl Network {
         let block_producer_ix = Self::hash(self.slot) as usize % self.nodes.len();
         println!("bp {}", block_producer_ix);
         let block_producer = &self.nodes[block_producer_ix];
-        let heaviest_fork = &block_producer.heaviest_fork;
-        let mut votes = vec![];
-        for (i, n) in self.nodes.iter().enumerate() {
-            if !Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
-                continue;
-            }
-            let vote = n.last_vote();
-            if heaviest_fork.iter().find(|x| **x == vote.slot).is_some() {
-                votes.push((i, vote.clone()))
-            }
-        }
-        let block = Block {
-            slot: self.slot,
-            parent: *heaviest_fork.get(0).unwrap_or(&0),
-            votes,
-        };
+        let votes: Vec<_> = self
+            .nodes
+            .par_iter()
+            .enumerate()
+            .filter_map(|(i, n)| {
+                if !Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
+                    return None;
+                }
+                let vote = n.last_vote();
+                Some((i, vote.clone()))
+            })
+            .collect();
+        let block = block_producer.make_block(self.slot, votes);
         self.nodes.par_iter_mut().enumerate().for_each(|(i, n)| {
             if Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
                 n.apply(&block);

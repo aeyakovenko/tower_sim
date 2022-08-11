@@ -144,6 +144,22 @@ impl Node {
     pub fn last_vote(&self) -> &Vote {
         self.tower.votes.front().unwrap_or(&self.tower.root)
     }
+    pub fn make_block(&self, slot: Slot, votes: Vec<(ID, Vote)>) -> Block {
+        let votes: Vec<(ID, Vote)> = votes
+            .into_iter()
+            .filter(|(_, vote)| {
+                self.heaviest_fork
+                    .iter()
+                    .find(|x| **x == vote.slot)
+                    .is_some()
+            })
+            .collect();
+        Block {
+            slot,
+            parent: *self.heaviest_fork.get(0).unwrap_or(&0),
+            votes,
+        }
+    }
     pub fn vote(&mut self) {
         let weights = self.fork_weights();
         let heaviest_slot = weights
@@ -154,6 +170,9 @@ impl Node {
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
         let heaviest_fork = self.compute_fork(heaviest_slot);
+        if self.id == 0 {
+            println!("heaviest fork {:?}", heaviest_fork);
+        }
         self.heaviest_fork = heaviest_fork;
         let mut tower = self.tower.clone();
         let vote = Vote {
@@ -171,13 +190,21 @@ impl Node {
                 .find(|x| **x == tower.votes[1].slot)
                 .is_none()
         {
+            if self.id == 0 {
+                println!("recent vote isn't in the heaviest fork");
+            }
             return;
         }
         if !self.threshold_check(&tower) {
+            if self.id == 0 {
+                println!("threshold check failed");
+            }
             return;
         }
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
-            println!("{} oc check failed", self.id);
+            if self.id == 0 {
+                println!("oc check failed");
+            }
             return;
         }
         self.tower = tower;
