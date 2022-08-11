@@ -160,6 +160,24 @@ impl Node {
             votes,
         }
     }
+
+    //the latest vote in tower is from the heaviest fork
+    //the second to last vote that is still live in tower
+    //must be in the heaviest fork, which is the same fork
+    //that generated the vote
+    pub fn lockout_check(&self, tower: &Tower) -> bool {
+        if tower.votes.len() > 1
+            && self
+                .heaviest_fork
+                .iter()
+                .find(|x| **x == tower.votes[1].slot)
+                .is_none()
+        {
+            return false;
+        }
+        true
+    }
+
     pub fn vote(&mut self) {
         let weights = self.fork_weights();
         let heaviest_slot = weights
@@ -181,17 +199,12 @@ impl Node {
         };
         //apply this vote and expire all the old votes
         tower.apply(&vote);
-        //the most recent unexpired vote must be in the heaviest fork
-        //of this is the first vote in tower
-        if tower.votes.len() > 1
-            && self
-                .heaviest_fork
-                .iter()
-                .find(|x| **x == tower.votes[1].slot)
-                .is_none()
-        {
+        if !self.lockout_check(&tower) {
             if self.id == 0 {
-                println!("recent vote isn't in the heaviest fork");
+                println!(
+                    "recent vote is locked out from the heaviest fork {:?}",
+                    tower.votes[1]
+                );
             }
             return;
         }
@@ -206,6 +219,9 @@ impl Node {
                 println!("oc check failed");
             }
             return;
+        }
+        if self.id == 0 {
+            println!("voting {:?}", vote);
         }
         self.tower = tower;
     }
