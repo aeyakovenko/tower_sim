@@ -31,11 +31,11 @@ impl Node {
         bank.apply(block);
         let root = bank.supermajority_root();
         assert!(root.slot >= self.supermajority_root.slot);
+        self.banks.insert(bank.slot, bank);
         if root.slot != self.supermajority_root.slot {
             self.gc();
         }
         self.supermajority_root = root;
-        self.banks.insert(bank.slot, bank);
     }
     //only keep forks that are connected to root
     pub fn gc(&mut self) {
@@ -171,14 +171,17 @@ impl Node {
                 .find(|x| **x == tower.votes[1].slot)
                 .is_none()
         {
+            println!("vote is too old {:?}", self.id);
             return;
         }
-        if !self.threshold_check(&tower) {
-            return;
-        }
-        if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
-            return;
-        }
+        //if !self.threshold_check(&tower) {
+        //    println!("{} threshold check failed", self.id);
+        //    return;
+        //}
+        //if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
+        //    println!("{} oc check failed", self.id);
+        //    return;
+        //}
         self.tower = tower;
     }
 }
