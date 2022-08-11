@@ -87,7 +87,7 @@ impl Node {
         let bank = self.banks.get(&vote.slot).unwrap();
         for v in &tower.votes {
             if v.lockout > 1 << THRESHOLD {
-                if !bank.supermajority_slot(&vote) {
+                if !bank.supermajority_slot(v) {
                     return false;
                 }
             }
@@ -174,10 +174,10 @@ impl Node {
             println!("vote is too old {:?}", self.id);
             return;
         }
-        //if !self.threshold_check(&tower) {
-        //    println!("{} threshold check failed", self.id);
-        //    return;
-        //}
+        if !self.threshold_check(&tower) {
+            println!("{} threshold check failed", self.id);
+            return;
+        }
         //if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
         //    println!("{} oc check failed", self.id);
         //    return;
