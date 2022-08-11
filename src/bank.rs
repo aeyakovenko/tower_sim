@@ -47,7 +47,7 @@ impl Bank {
             self.nodes[*id].apply(vote);
         }
     }
-    pub fn supermajority_slot(&self, vote: &Vote) -> bool {
+    pub fn threshold_slot(&self, vote: &Vote) -> bool {
         let count: usize = self
             .nodes
             .iter()
