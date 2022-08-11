@@ -5,7 +5,6 @@ pub const NUM_NODES: usize = 1_000;
 pub type ID = usize;
 
 pub struct Bank {
-    pub id: ID,
     pub nodes: Vec<Tower>,
     pub slot: Slot,
     pub parent: Slot,
@@ -19,22 +18,20 @@ pub struct Block {
 }
 
 impl Bank {
-    pub fn zero(id: ID) -> Self {
+    pub fn zero() -> Self {
         let mut nodes = vec![];
         for _ in 0..NUM_NODES {
             nodes.push(Tower::default());
         }
         Bank {
-            id,
             nodes,
             slot: 0,
             parent: 0,
             children: vec![],
         }
     }
-    pub fn child(&mut self, id: ID, slot: Slot) -> Self {
+    pub fn child(&mut self, slot: Slot) -> Self {
         let b = Bank {
-            id,
             nodes: self.nodes.clone(),
             slot,
             parent: self.slot,

@@ -15,7 +15,7 @@ pub struct Node {
 impl Node {
     pub fn zero(id: ID) -> Self {
         let mut banks = HashMap::new();
-        banks.insert(0, Bank::zero(id));
+        banks.insert(0, Bank::zero());
         Node {
             id,
             supermajority_root: Vote::zero(),
@@ -27,7 +27,7 @@ impl Node {
     pub fn apply(&mut self, block: &Block) {
         assert!(self.banks.get(&block.slot).is_none());
         let parent = self.banks.get_mut(&block.parent).unwrap();
-        let mut bank = parent.child(self.id, block.slot);
+        let mut bank = parent.child(block.slot);
         bank.apply(block);
         let root = bank.supermajority_root();
         assert!(root.slot >= self.supermajority_root.slot);
