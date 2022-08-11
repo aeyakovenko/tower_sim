@@ -171,11 +171,9 @@ impl Node {
                 .find(|x| **x == tower.votes[1].slot)
                 .is_none()
         {
-            println!("vote is too old {:?}", self.id);
             return;
         }
         if !self.threshold_check(&tower) {
-            println!("{} threshold check failed", self.id);
             return;
         }
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
