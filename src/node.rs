@@ -88,6 +88,9 @@ impl Node {
         for v in &tower.votes {
             if v.lockout > 1 << THRESHOLD {
                 if !bank.threshold_slot(v) {
+                    if self.id < 2 {
+                        println!("{} threshold check failed at {:?}", self.id, v);
+                    }
                     return false;
                 }
             }
@@ -188,8 +191,8 @@ impl Node {
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
         let heaviest_fork = self.compute_fork(heaviest_slot);
-        if self.id == 0 {
-            println!("heaviest fork {:?}", heaviest_fork);
+        if self.id < 2 {
+            println!("{} heaviest fork {:?}", self.id, heaviest_fork);
         }
         self.heaviest_fork = heaviest_fork;
         let mut tower = self.tower.clone();
@@ -200,28 +203,29 @@ impl Node {
         //apply this vote and expire all the old votes
         tower.apply(&vote);
         if !self.lockout_check(&tower) {
-            if self.id == 0 {
+            if self.id < 2 {
                 println!(
-                    "recent vote is locked out from the heaviest fork {:?}",
+                    "{} recent vote is locked out from the heaviest fork {:?}",
+                    self.id,
                     tower.votes[1]
                 );
             }
             return;
         }
         if !self.threshold_check(&tower) {
-            if self.id == 0 {
-                println!("threshold check failed");
+            if self.id < 2 {
+                println!("{} threshold check failed", self.id);
             }
             return;
         }
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
-            if self.id == 0 {
-                println!("oc check failed");
+            if self.id < 2 {
+                println!("{} oc check failed", self.id);
             }
             return;
         }
-        if self.id == 0 {
-            println!("voting {:?}", vote);
+        if self.id < 2 {
+            println!("{} voting {:?}", self.id, vote);
         }
         self.tower = tower;
     }

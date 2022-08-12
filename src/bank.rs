@@ -53,7 +53,7 @@ impl Bank {
             .iter()
             .map(|n| {
                 for v in &n.votes {
-                    //only allow lockout to be 2
+                    //only allow proposed lockout to be 2x the observed
                     if v.slot >= vote.slot && 2 * v.lockout >= vote.lockout {
                         return 1;
                     }
