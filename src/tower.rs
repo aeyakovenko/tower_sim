@@ -79,11 +79,23 @@ impl Tower {
             self.votes.pop_back();
         }
     }
-    pub fn has_gaps(&self) -> bool {
-        for i in 1..self.votes.len() {
-            if self.votes[i].lockout != 2*self.votes[i - 1].lockout {
+    //check if tower has more lockouts on a slot then in self
+    pub fn compare_lockouts(&self, skip_lockout: u64, tower: &Tower) -> bool {
+        let mut i = 0;
+        let mut j = 0;
+        while i < self.votes.len() && j < tower.votes.len() {
+            if self.votes[i].lockout < skip_lockout {
+                i = i + 1;
+                continue;
+            }
+            if tower.votes[j].slot < self.votes[i].slot {
+                j = j + 1;
+                continue;
+            }
+            if tower.votes[j].lockout > self.votes[i].lockout {
                 return true;
             }
+            i = i + 1;
         }
         false
     }
@@ -91,6 +103,67 @@ impl Tower {
     pub fn latest_vote(&self) -> Vote {
         self.votes.front().unwrap_or(&self.root).clone()
     }
+}
+
+#[test]
+fn test_compare_lockouts_1() {
+    let mut t1 = Tower::default();
+    let mut t2 = Tower::default();
+    let v = Vote {
+        slot: 1,
+        lockout: 2,
+    };
+    assert!(!t1.compare_lockouts(0, &t2));
+    t1.apply(&v);
+    t2.apply(&v);
+    assert!(!t1.compare_lockouts(0, &t2));
+}
+
+#[test]
+fn test_compare_lockouts_2() {
+    let mut t1 = Tower::default();
+    let mut t2 = Tower::default();
+    assert!(!t1.compare_lockouts(0, &t2));
+    let v1 = Vote {
+        slot: 1,
+        lockout: 2,
+    };
+    t1.apply(&v1);
+    let v2 = Vote {
+        slot: 2,
+        lockout: 2,
+    };
+    t2.apply(&v1);
+    t2.apply(&v2);
+    assert!(t1.compare_lockouts(0, &t2));
+}
+
+#[test]
+fn test_compare_lockouts_3() {
+    let mut t1 = Tower::default();
+    let mut t2 = Tower::default();
+    assert!(!t1.compare_lockouts(0, &t2));
+    let v1 = Vote {
+        slot: 1,
+        lockout: 2,
+    };
+    let v2 = Vote {
+        slot: 2,
+        lockout: 2,
+    };
+    let v3 = Vote {
+        slot: 5,
+        lockout: 2,
+    };
+
+    t1.apply(&v1);
+    t1.apply(&v2);
+    t2.apply(&v1);
+    t2.apply(&v2);
+    t2.apply(&v3);
+    println!("votes {:?}", t2.votes);
+    println!("votes {:?}", t1.votes);
+    assert!(!t1.compare_lockouts(0, &t2));
 }
 
 #[test]
@@ -119,25 +192,6 @@ fn test_root() {
         lockout: 1 << DEPTH,
     };
     assert_eq!(t.root, root);
-}
-
-#[test]
-fn test_has_gaps() {
-    let mut t = Tower::default();
-    for i in 1..DEPTH {
-        let v = Vote {
-            slot: i as u64,
-            lockout: 2,
-        };
-        t.apply(&v);
-        assert!(!t.has_gaps());
-    }
-    let vote = Vote {
-        slot: DEPTH as u64 + 8,
-        lockout: 2,
-    };
-    t.apply(&vote);
-    assert!(t.has_gaps());
 }
 
 #[test]

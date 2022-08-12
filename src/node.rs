@@ -85,7 +85,7 @@ impl Node {
     fn threshold_check(&self, tower: &Tower) -> bool {
         let vote = tower.votes.front().unwrap();
         let bank = self.banks.get(&vote.slot).unwrap();
-        if self.tower.has_gaps() {
+        if !self.tower.compare_lockouts(1 << THRESHOLD, tower) {
             return true;
         }
         for v in &tower.votes {
