@@ -85,6 +85,9 @@ impl Node {
     fn threshold_check(&self, tower: &Tower) -> bool {
         let vote = tower.votes.front().unwrap();
         let bank = self.banks.get(&vote.slot).unwrap();
+        if self.tower.has_gaps() {
+            return true;
+        }
         for v in &tower.votes {
             if v.lockout > 1 << THRESHOLD {
                 if !bank.threshold_slot(v) {
@@ -191,9 +194,9 @@ impl Node {
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
         let heaviest_fork = self.compute_fork(heaviest_slot);
-        if self.id < 2 {
-            println!("{} heaviest fork {:?}", self.id, heaviest_fork);
-        }
+        //if self.id < 2 {
+        //    println!("{} heaviest fork {:?}", self.id, heaviest_fork);
+        //}
         self.heaviest_fork = heaviest_fork;
         let mut tower = self.tower.clone();
         let vote = Vote {

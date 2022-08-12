@@ -79,6 +79,14 @@ impl Tower {
             self.votes.pop_back();
         }
     }
+    pub fn has_gaps(&self) -> bool {
+        for i in 1..self.votes.len() {
+            if self.votes[i].lockout != 2*self.votes[i - 1].lockout {
+                return true;
+            }
+        }
+        false
+    }
 
     pub fn latest_vote(&self) -> Vote {
         self.votes.front().unwrap_or(&self.root).clone()
@@ -111,6 +119,25 @@ fn test_root() {
         lockout: 1 << DEPTH,
     };
     assert_eq!(t.root, root);
+}
+
+#[test]
+fn test_has_gaps() {
+    let mut t = Tower::default();
+    for i in 1..DEPTH {
+        let v = Vote {
+            slot: i as u64,
+            lockout: 2,
+        };
+        t.apply(&v);
+        assert!(!t.has_gaps());
+    }
+    let vote = Vote {
+        slot: DEPTH as u64 + 8,
+        lockout: 2,
+    };
+    t.apply(&vote);
+    assert!(t.has_gaps());
 }
 
 #[test]
