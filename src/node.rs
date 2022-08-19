@@ -1,90 +1,46 @@
 use crate::bank::{Bank, Block, ID, NUM_NODES};
+use std::collections::HashSet;
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
+use crate::bank::Banks;
+
 
 const THRESHOLD: usize = 8;
 
 pub struct Node {
     pub id: ID,
-    pub supermajority_root: Vote,
-    banks: HashMap<Slot, Bank>,
+    //local view of the bank forks
+    blocks: HashSet<Slot>,
     tower: Tower,
     pub heaviest_fork: Vec<Slot>,
 }
 
 impl Node {
     pub fn zero(id: ID) -> Self {
-        let mut banks = HashMap::new();
-        banks.insert(0, Bank::zero());
+        let mut blocks = HashSet::new();
+        blocks.insert(0);
         Node {
             id,
-            supermajority_root: Vote::zero(),
-            banks,
+            blocks,
             tower: Tower::default(),
             heaviest_fork: vec![0],
         }
     }
-    pub fn apply(&mut self, block: &Block) {
-        assert!(self.banks.get(&block.slot).is_none());
-        let parent = self.banks.get_mut(&block.parent).unwrap();
-        let mut bank = parent.child(block.slot);
-        bank.apply(block);
-        let root = bank.supermajority_root();
-        assert!(root.slot >= self.supermajority_root.slot);
-        self.banks.insert(bank.slot, bank);
-        if root.slot != self.supermajority_root.slot {
+
+    pub fn set_active_block(&mut self, slot: Slot) {
+        self.blocks.insert(slot);
+        if self.blocks.len() > 1024 {
             self.gc();
         }
-        self.supermajority_root = root;
-    }
-    //only keep forks that are connected to root
-    pub fn gc(&mut self) {
-        let mut valid = vec![];
-        let mut children = vec![self.supermajority_root.slot];
-        while !children.is_empty() {
-            let slot = children.pop().unwrap();
-            valid.push(slot);
-            let bank = self.banks.get(&slot).unwrap();
-            children.extend_from_slice(&bank.children);
-        }
-        let mut new_banks = HashMap::new();
-        for v in valid {
-            new_banks.insert(v, self.banks.remove(&v).unwrap());
-        }
-        self.banks = new_banks;
     }
 
-    /// A validator V's vote on an ancestor X counts towards a descendant
-    /// Y even if the validator is not locked out on X at Y anymore,
-    /// as long as X is the latest vote observed from this validator V
-    pub fn fork_weights(&self) -> HashMap<Slot, usize> {
-        //each validators latest votes
-        let mut latest_votes: HashMap<ID, Slot> = HashMap::new();
-        for v in self.banks.values() {
-            v.latest_votes(&mut latest_votes);
-        }
-        //total stake voting per slot
-        let mut slot_votes: HashMap<Slot, usize> = HashMap::new();
-        for (_, v) in &latest_votes {
-            let e = slot_votes.entry(*v).or_insert(0);
-            *e = *e + 1;
-        }
-        //stake weight is inherited from the parent
-        let mut weights: HashMap<Slot, usize> = HashMap::new();
-        let mut children = vec![self.supermajority_root.slot];
-        while !children.is_empty() {
-            let child = children.pop().unwrap();
-            let bank = self.banks.get(&child).unwrap();
-            children.extend_from_slice(&bank.children);
-            let parent_weight = *weights.get(&bank.parent).unwrap_or(&0);
-            let e = weights.entry(child).or_insert(parent_weight);
-            *e = *e + *slot_votes.get(&child).unwrap_or(&0);
-        }
-        weights
+    fn gc(&mut self) {
+        self.blocks.retain(|x| *x >= self.tower.root.slot);
     }
-    fn threshold_check(&self, tower: &Tower) -> bool {
+
+    fn threshold_check(&self, tower: &Tower, banks: &HashMap<Slot, Bank>) -> bool {
         let vote = tower.votes.front().unwrap();
-        let bank = self.banks.get(&vote.slot).unwrap();
+        let bank = banks.get(&vote.slot).unwrap();
         if !self.tower.compare_lockouts(1 << THRESHOLD, tower) {
             return true;
         }
@@ -101,11 +57,11 @@ impl Node {
         true
     }
 
-    fn compute_fork(&self, slot: Slot) -> Vec<Slot> {
+    fn compute_fork(&self, slot: Slot, banks: &Banks) -> Vec<Slot> {
         let mut fork = vec![slot];
         loop {
             let last = fork.last().unwrap();
-            if let Some(b) = self.banks.get(last) {
+            if let Some(b) = banks.fork_map.get(last) {
                 if *last == b.parent {
                     break;
                 }
@@ -121,6 +77,7 @@ impl Node {
         &self,
         new_fork: &[Slot],
         fork_weights: &HashMap<Slot, usize>,
+        banks: &Banks,
     ) -> bool {
         // no votes left in tower
         if self.tower.votes.front().is_none() {
@@ -135,11 +92,14 @@ impl Node {
         //all the recent forks but those decending from the last vote must have > 1/3 votes
         let mut total = 0;
         for (slot, stake) in fork_weights {
+            if self.blocks.get(slot).is_none() {
+                continue;
+            }
             if *slot <= last_vote.slot {
                 //slot is older than last vote
                 continue;
             }
-            let fork = self.compute_fork(*slot);
+            let fork = self.compute_fork(*slot, banks);
             if fork.iter().find(|x| **x == last_vote.slot).is_none() {
                 //slot is not a child of the last vote
                 total += stake;
@@ -184,8 +144,13 @@ impl Node {
         true
     }
 
-    pub fn vote(&mut self) {
-        let weights = self.fork_weights();
+    pub fn vote(&mut self, banks: &Banks) {
+        let weights: HashMap<Slot,usize> = banks
+            .fork_weights
+            .iter()
+            .filter(|(x, _)| self.blocks.contains(x))
+            .map(|(x,y)| (*x,*y))
+            .collect();
         let heaviest_slot = weights
             .iter()
             .map(|(x, y)| (y, x))
@@ -193,7 +158,7 @@ impl Node {
             .map(|(_, y)| *y)
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
-        let heaviest_fork = self.compute_fork(heaviest_slot);
+        let heaviest_fork = self.compute_fork(heaviest_slot, banks);
         //if self.id < 2 {
         //    println!("{} heaviest fork {:?}", self.id, heaviest_fork);
         //}
@@ -209,19 +174,18 @@ impl Node {
             if self.id < 2 {
                 println!(
                     "{} recent vote is locked out from the heaviest fork {:?}",
-                    self.id,
-                    tower.votes[1]
+                    self.id, tower.votes[1]
                 );
             }
             return;
         }
-        if !self.threshold_check(&tower) {
+        if !self.threshold_check(&tower, &banks.fork_map) {
             if self.id < 2 {
                 println!("{} threshold check failed", self.id);
             }
             return;
         }
-        if !self.optimistic_conf_check(&self.heaviest_fork, &weights) {
+        if !self.optimistic_conf_check(&self.heaviest_fork, &weights, banks) {
             if self.id < 2 {
                 println!("{} oc check failed", self.id);
             }
