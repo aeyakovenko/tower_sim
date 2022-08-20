@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::bank::Banks;
 
 
-const THRESHOLD: usize = 8;
+const THRESHOLD: usize = 5;
 
 pub struct Node {
     pub id: ID,

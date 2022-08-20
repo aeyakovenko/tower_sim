@@ -4,7 +4,7 @@ fn main() {
     let mut network = network::Network::default();
     let mut num_partitions = 0;
     let mut partition_slot = 0;
-    const TIME: usize = 64;
+    const TIME: usize = 128;
     for slot in 0..1_000_000 {
         network.step();
         println!("root {:?}", network.root());
