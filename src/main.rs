@@ -4,7 +4,7 @@ fn main() {
     let mut network = network::Network::default();
     let mut num_partitions = 0;
     let mut partition_slot = 0;
-    const TIME: usize = 128;
+    const TIME: usize = 256;
     for slot in 0..1_000_000 {
         network.step();
         println!("root {:?}", network.root());
@@ -14,7 +14,7 @@ fn main() {
             partition_slot = slot;
             num_partitions = 4;
         }
-        if num_partitions > 0 && partition_slot + TIME == slot {
+        if num_partitions > 0 && partition_slot + TIME/4 == slot {
             println!("REPAIRING PARTITIONS=================================");
             network.repair_partitions();
             num_partitions = 0;

@@ -20,7 +20,7 @@ impl Vote {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Tower {
     pub votes: VecDeque<Vote>,
     pub root: Vote,

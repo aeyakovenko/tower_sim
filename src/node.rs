@@ -159,9 +159,7 @@ impl Node {
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
         let heaviest_fork = self.compute_fork(heaviest_slot, banks);
-        //if self.id < 2 {
-        //    println!("{} heaviest fork {:?}", self.id, heaviest_fork);
-        //}
+        assert!(heaviest_fork.iter().find(|x| **x == self.tower.root.slot).is_some(), "{:?} {:?}", self.tower, heaviest_fork);
         self.heaviest_fork = heaviest_fork;
         let mut tower = self.tower.clone();
         let vote = Vote {

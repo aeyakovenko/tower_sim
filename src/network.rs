@@ -63,7 +63,6 @@ impl Network {
         println!("slot {} voting", self.slot);
         self.nodes.iter_mut().for_each(|n| n.vote(&self.banks));
         let block_producer_ix = Self::hash(self.slot) as usize % self.nodes.len();
-        println!("bp {}", block_producer_ix);
         let block_producer = &self.nodes[block_producer_ix];
         let votes: Vec<_> = self
             .nodes
