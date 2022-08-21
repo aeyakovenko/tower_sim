@@ -43,7 +43,7 @@ impl Node {
         }
         let vote = tower.votes.front().unwrap();
         let bank = banks.get(&vote.slot).unwrap();
-        for v in &tower.votes {
+        for v in tower.votes.iter().rev() {
             if v.lockout > 1 << THRESHOLD {
                 if !bank.threshold_slot(v) {
                     if self.id < 2 {
@@ -196,6 +196,7 @@ impl Node {
             return;
         }
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights, banks) {
+            assert!(false);
             if self.id < 2 {
                 println!("{} oc check failed", self.id);
             }
