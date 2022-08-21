@@ -14,7 +14,7 @@ fn main() {
             partition_slot = slot;
             num_partitions = 4;
         }
-        if num_partitions > 0 && partition_slot + TIME/4 == slot {
+        if num_partitions > 0 && partition_slot + TIME / 4 == slot {
             println!("REPAIRING PARTITIONS=================================");
             network.repair_partitions();
             num_partitions = 0;

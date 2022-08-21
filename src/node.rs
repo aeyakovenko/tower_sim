@@ -1,9 +1,8 @@
+use crate::bank::Banks;
 use crate::bank::{Bank, Block, ID, NUM_NODES};
-use std::collections::HashSet;
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
-use crate::bank::Banks;
-
+use std::collections::HashSet;
 
 const THRESHOLD: usize = 5;
 
@@ -39,11 +38,11 @@ impl Node {
     }
 
     fn threshold_check(&self, tower: &Tower, banks: &HashMap<Slot, Bank>) -> bool {
-        let vote = tower.votes.front().unwrap();
-        let bank = banks.get(&vote.slot).unwrap();
         if !self.tower.compare_lockouts(1 << THRESHOLD, tower) {
             return true;
         }
+        let vote = tower.votes.front().unwrap();
+        let bank = banks.get(&vote.slot).unwrap();
         for v in &tower.votes {
             if v.lockout > 1 << THRESHOLD {
                 if !bank.threshold_slot(v) {
@@ -132,24 +131,34 @@ impl Node {
     //must be in the heaviest fork, which is the same fork
     //that generated the vote
     pub fn lockout_check(&self, tower: &Tower) -> bool {
-        if tower.votes.len() > 1
-            && self
+        if tower.votes.len() > 0 {
+            for e in &tower.votes {
+                if self.heaviest_fork.iter().find(|x| **x == e.slot).is_none() {
+                    return false;
+                }
+            }
+            true
+        } else {
+            let rv = self
                 .heaviest_fork
                 .iter()
-                .find(|x| **x == tower.votes[1].slot)
-                .is_none()
-        {
-            return false;
+                .find(|x| **x == tower.root.slot)
+                .is_some();
+            assert!(
+                rv,
+                "heaviest fork doesn't contain root {} {:?}",
+                tower.root.slot, self.heaviest_fork
+            );
+            rv
         }
-        true
     }
 
     pub fn vote(&mut self, banks: &Banks) {
-        let weights: HashMap<Slot,usize> = banks
+        let weights: HashMap<Slot, usize> = banks
             .fork_weights
             .iter()
             .filter(|(x, _)| self.blocks.contains(x))
-            .map(|(x,y)| (*x,*y))
+            .map(|(x, y)| (*x, *y))
             .collect();
         let heaviest_slot = weights
             .iter()
@@ -159,7 +168,10 @@ impl Node {
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
         let heaviest_fork = self.compute_fork(heaviest_slot, banks);
-        assert!(heaviest_fork.iter().find(|x| **x == self.tower.root.slot).is_some(), "{:?} {:?}", self.tower, heaviest_fork);
+        assert!(heaviest_fork
+            .iter()
+            .find(|x| **x == banks.lowest_root.slot)
+            .is_some());
         self.heaviest_fork = heaviest_fork;
         let mut tower = self.tower.clone();
         let vote = Vote {
@@ -190,7 +202,7 @@ impl Node {
             return;
         }
         if self.id < 2 {
-            println!("{} voting {:?}", self.id, vote);
+            println!("{} voting {:?} root: {:?}", self.id, vote, self.tower.root);
         }
         self.tower = tower;
     }

@@ -45,7 +45,10 @@ impl Banks {
         let lowest_root = bank.lowest_root();
         self.fork_map.insert(bank.slot, bank);
         if lowest_root.slot > self.lowest_root.slot {
-            println!("LOWEST ROOT UPDATE {:?} {:?}", self.lowest_root, lowest_root);
+            println!(
+                "LOWEST ROOT UPDATE {:?} {:?}",
+                self.lowest_root, lowest_root
+            );
             self.lowest_root = lowest_root;
             self.gc();
         }
@@ -61,7 +64,6 @@ impl Banks {
         while !children.is_empty() {
             let slot = children.pop().unwrap();
             valid.push(slot);
-            println!("GC SLOT {}", slot);
             let bank = self.fork_map.get(&slot).unwrap();
             children.extend_from_slice(&bank.children);
         }

@@ -1,5 +1,5 @@
-use crate::bank::ID;
 use crate::bank::Banks;
+use crate::bank::ID;
 use crate::bank::NUM_NODES;
 use crate::node::Node;
 use crate::tower::Slot;

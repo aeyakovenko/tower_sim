@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::collections::HashMap;
+
 pub const DEPTH: usize = 16;
 
 pub type Slot = u64;
@@ -81,21 +83,21 @@ impl Tower {
     }
     //check if tower has more lockouts on a slot then in self
     pub fn compare_lockouts(&self, skip_lockout: u64, tower: &Tower) -> bool {
-        let mut i = 0;
-        let mut j = 0;
-        while i < self.votes.len() && j < tower.votes.len() {
-            if self.votes[i].lockout < skip_lockout {
-                i = i + 1;
+        if tower.root.slot != self.root.slot {
+            return true;
+        }
+        let mut set = HashMap::new();
+        set.insert(self.root.slot, self.root.lockout); 
+        for e in &self.votes {
+            set.insert(e.slot, e.lockout); 
+        }
+        for e in &tower.votes {
+            if e.lockout < skip_lockout {
                 continue;
             }
-            if tower.votes[j].slot < self.votes[i].slot {
-                j = j + 1;
-                continue;
-            }
-            if tower.votes[j].lockout > self.votes[i].lockout {
+            if *set.get(&e.slot).unwrap_or(&u64::MAX) < e.lockout {
                 return true;
             }
-            i = i + 1;
         }
         false
     }
