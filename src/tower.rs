@@ -82,24 +82,25 @@ impl Tower {
         }
     }
     //check if tower has more lockouts on a slot then in self
-    pub fn compare_lockouts(&self, skip_lockout: u64, tower: &Tower) -> bool {
-        if tower.root.slot != self.root.slot {
-            return true;
-        }
+    pub fn compare_lockouts(&self, skip_lockout: u64, tower: &Tower) -> HashMap<Slot, u64> {
+        let mut rv = HashMap::new();
         let mut set = HashMap::new();
         set.insert(self.root.slot, self.root.lockout); 
         for e in &self.votes {
             set.insert(e.slot, e.lockout); 
+        }
+        if *set.get(&tower.root.slot).unwrap_or(&u64::MAX) < tower.root.lockout {
+            rv.insert(tower.root.slot, tower.root.lockout);
         }
         for e in &tower.votes {
             if e.lockout < skip_lockout {
                 continue;
             }
             if *set.get(&e.slot).unwrap_or(&u64::MAX) < e.lockout {
-                return true;
+                rv.insert(e.slot, e.lockout);
             }
         }
-        false
+        rv
     }
 
     pub fn latest_vote(&self) -> Vote {

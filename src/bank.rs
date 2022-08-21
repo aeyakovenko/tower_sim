@@ -138,6 +138,10 @@ impl Bank {
             .nodes
             .iter()
             .map(|n| {
+                //alredy rooted
+                if n.root.slot >= vote.slot {
+                    return 1;
+                }
                 for v in &n.votes {
                     //only allow proposed lockout to be 2x the observed
                     if v.slot >= vote.slot && 2 * v.lockout >= vote.lockout {
