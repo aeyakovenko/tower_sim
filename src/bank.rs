@@ -144,7 +144,7 @@ impl Bank {
                 }
                 for v in &n.votes {
                     //only allow proposed lockout to be 2x the observed
-                    if v.slot >= vote.slot && 2 * v.lockout >= vote.lockout {
+                    if (v.slot + 2 * v.lockout) >= (vote.slot + vote.lockout) {
                         return 1;
                     }
                 }

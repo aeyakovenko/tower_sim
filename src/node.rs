@@ -4,7 +4,7 @@ use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-const THRESHOLD: usize = 5;
+const THRESHOLD: usize = 6;
 
 pub struct Node {
     pub id: ID,
@@ -44,7 +44,7 @@ impl Node {
         for (slot, lockout) in proposed_lockouts {
             let v = Vote { slot, lockout };
             if !bank.threshold_slot(&v) {
-                if self.id < 2 {
+                if self.id < 4 {
                     println!("{} threshold check failed at {:?}", self.id, v);
                 }
                 return false;
@@ -170,6 +170,9 @@ impl Node {
             .find(|x| **x == banks.lowest_root.slot)
             .is_some());
         self.heaviest_fork = heaviest_fork;
+        if self.id < 4 {
+            println!("{} heaviest fork {:?}", self.id, self.heaviest_fork);
+        }
         let mut tower = self.tower.clone();
         let vote = Vote {
             slot: heaviest_slot,
@@ -178,7 +181,7 @@ impl Node {
         //apply this vote and expire all the old votes
         tower.apply(&vote);
         if !self.lockout_check(&tower) {
-            if self.id < 2 {
+            if self.id < 4 {
                 println!(
                     "{} recent vote is locked out from the heaviest fork {:?}",
                     self.id, tower.votes[1]
@@ -187,19 +190,24 @@ impl Node {
             return;
         }
         if !self.threshold_check(&tower, &banks.fork_map) {
-            if self.id < 2 {
-                println!("{} threshold check failed", self.id);
+            if self.id < 4 {
+                println!("{} THRESHOLD CHECK FAILED", self.id);
+                let vote = tower.votes.front().unwrap();
+                let bank = banks.fork_map.get(&vote.slot).unwrap();
+                for v in tower.votes.iter().rev() {
+                    println!("{} LOCKOUT {:?} {}", self.id, v, bank.threshold_slot(v));
+                }
             }
             return;
         }
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights, banks) {
             assert!(false);
-            if self.id < 2 {
+            if self.id < 4 {
                 println!("{} oc check failed", self.id);
             }
             return;
         }
-        if self.id < 2 {
+        if self.id < 4 {
             println!("{} voting {:?} root: {:?}", self.id, vote, self.tower.root);
         }
         self.tower = tower;
