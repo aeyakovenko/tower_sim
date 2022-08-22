@@ -1,5 +1,5 @@
-use std::collections::VecDeque;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 
 pub const DEPTH: usize = 16;
 
@@ -41,15 +41,14 @@ impl Default for Tower {
 }
 
 impl Tower {
-    pub fn apply(&mut self, vote: &Vote) {
+    pub fn apply(&mut self, vote: &Vote) -> Result<(), ()> {
         assert_eq!(vote.lockout, 2);
         //pop all the expired votes
         loop {
             if let Some(recent) = self.votes.front() {
                 //apply only new votes
-                assert!(recent.slot <= vote.slot);
-                if recent.slot == vote.slot {
-                    return;
+                if recent.slot >= vote.slot {
+                    return Err(());
                 }
                 //still locked out
                 if recent.slot + recent.lockout >= vote.slot {
@@ -80,14 +79,15 @@ impl Tower {
         if root {
             self.votes.pop_back();
         }
+        Ok(())
     }
     //check if tower has more lockouts on a slot then in self
     pub fn compare_lockouts(&self, skip_lockout: u64, tower: &Tower) -> HashMap<Slot, u64> {
         let mut rv = HashMap::new();
         let mut set = HashMap::new();
-        set.insert(self.root.slot, self.root.lockout); 
+        set.insert(self.root.slot, self.root.lockout);
         for e in &self.votes {
-            set.insert(e.slot, e.lockout); 
+            set.insert(e.slot, e.lockout);
         }
         if *set.get(&tower.root.slot).unwrap_or(&u64::MAX) < tower.root.lockout {
             rv.insert(tower.root.slot, tower.root.lockout);

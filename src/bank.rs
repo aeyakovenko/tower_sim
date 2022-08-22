@@ -1,7 +1,7 @@
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 
-pub const NUM_NODES: usize = 1_000;
+pub const NUM_NODES: usize = 997;
 pub type ID = usize;
 
 pub struct Bank {
@@ -133,7 +133,7 @@ impl Bank {
             self.nodes[*id].apply(vote);
         }
     }
-    pub fn threshold_slot(&self, vote: &Vote) -> bool {
+    pub fn calc_threshold_slot(&self, vote: &Vote) -> usize {
         let count: usize = self
             .nodes
             .iter()
@@ -144,14 +144,18 @@ impl Bank {
                 }
                 for v in &n.votes {
                     //only allow proposed lockout to be 2x the observed
-                    if (v.slot + 2 * v.lockout) >= (vote.slot + vote.lockout) {
+                    if v.slot >= vote.slot && (v.slot + 2 * v.lockout) >= (vote.slot + vote.lockout)
+                    {
                         return 1;
                     }
                 }
                 0
             })
             .sum();
-        count > (2 * NUM_NODES) / 3
+        count
+    }
+    pub fn threshold_slot(&self, vote: &Vote) -> bool {
+        self.calc_threshold_slot(vote) > (2 * NUM_NODES) / 3
     }
     pub fn supermajority_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();

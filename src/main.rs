@@ -6,7 +6,7 @@ fn main() {
     let mut partition_slot = 0;
     let mut once = false;
     const TIME: usize = 128;
-    for slot in 0..TIME * 2 {
+    for slot in 0..TIME * 100 {
         network.step();
         println!("root {:?}", network.root());
         if num_partitions == 0 && slot >= TIME && slot % TIME == 0 {

@@ -38,7 +38,7 @@ impl Node {
     }
 
     fn threshold_check(&self, tower: &Tower, banks: &HashMap<Slot, Bank>) -> bool {
-        let proposed_lockouts =self.tower.compare_lockouts(1 << THRESHOLD, tower);
+        let proposed_lockouts = self.tower.compare_lockouts(1 << THRESHOLD, tower);
         let vote = tower.votes.front().unwrap();
         let bank = banks.get(&vote.slot).unwrap();
         for (slot, lockout) in proposed_lockouts {
@@ -170,16 +170,21 @@ impl Node {
             .find(|x| **x == banks.lowest_root.slot)
             .is_some());
         self.heaviest_fork = heaviest_fork;
-        if self.id < 4 {
-            println!("{} heaviest fork {:?}", self.id, self.heaviest_fork);
-        }
+        //if self.id < 4 {
+        //    println!("{} heaviest fork {:?}", self.id, self.heaviest_fork);
+        //}
         let mut tower = self.tower.clone();
         let vote = Vote {
             slot: heaviest_slot,
             lockout: 2,
         };
         //apply this vote and expire all the old votes
-        tower.apply(&vote);
+        if tower.apply(&vote).is_err() {
+            if self.id < 4 {
+                println!("{} VOTE is too old {:?} {:?}", self.id, vote, tower);
+            }
+            return;
+        }
         if !self.lockout_check(&tower) {
             if self.id < 4 {
                 println!(
@@ -195,7 +200,12 @@ impl Node {
                 let vote = tower.votes.front().unwrap();
                 let bank = banks.fork_map.get(&vote.slot).unwrap();
                 for v in tower.votes.iter().rev() {
-                    println!("{} LOCKOUT {:?} {}", self.id, v, bank.threshold_slot(v));
+                    println!(
+                        "{} LOCKOUT {:?} {}",
+                        self.id,
+                        v,
+                        bank.calc_threshold_slot(v)
+                    );
                 }
             }
             return;
