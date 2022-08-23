@@ -180,9 +180,7 @@ impl Node {
         };
         //apply this vote and expire all the old votes
         if tower.apply(&vote).is_err() {
-            if self.id < 4 {
-                println!("{} VOTE is too old {:?} {:?}", self.id, vote, tower);
-            }
+            //already voted
             return;
         }
         if !self.lockout_check(&tower) {
@@ -196,15 +194,17 @@ impl Node {
         }
         if !self.threshold_check(&tower, &banks.fork_map) {
             if self.id < 4 {
-                println!("{} THRESHOLD CHECK FAILED", self.id);
+                println!("{} THRESHOLD CHECK FAILED {:?}", self.id, tower);
                 let vote = tower.votes.front().unwrap();
                 let bank = banks.fork_map.get(&vote.slot).unwrap();
-                for v in tower.votes.iter().rev() {
+                for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
                     println!(
-                        "{} LOCKOUT {:?} {}",
+                        "{} LOCKOUT {:?} {} {:?} {}",
                         self.id,
                         v,
-                        bank.calc_threshold_slot(v)
+                        bank.calc_threshold_slot(1, v),
+                        t,
+                        bank.calc_threshold_slot(2, t)
                     );
                 }
             }
@@ -219,6 +219,33 @@ impl Node {
         }
         if self.id < 4 {
             println!("{} voting {:?} root: {:?}", self.id, vote, self.tower.root);
+        }
+        if self.id < 8 {
+            println!(
+                "{} VOTING\ntower: {:?}\nself: {:?}",
+                self.id, tower, self.tower
+            );
+            let vote = tower.votes.front().unwrap();
+            let bank = banks.fork_map.get(&vote.slot).unwrap();
+            for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
+                println!(
+                    "{} LOCKOUT {:?} {} {:?} {}",
+                    self.id,
+                    v,
+                    bank.calc_threshold_slot(1, v),
+                    t,
+                    bank.calc_threshold_slot(2, t)
+                );
+            }
+        }
+        for v in 1..tower.votes.len() {
+            let v = &tower.votes[v];
+            assert!(
+                self.tower.votes.iter().find(|x| x.slot == v.slot).is_some(),
+                "missing {} from {:?}",
+                v.slot,
+                self.tower
+            );
         }
         self.tower = tower;
     }

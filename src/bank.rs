@@ -43,6 +43,7 @@ impl Banks {
         let mut bank = parent.child(block.slot);
         bank.apply(block);
         let lowest_root = bank.lowest_root();
+        assert!(self.fork_map.get(&bank.slot).is_none());
         self.fork_map.insert(bank.slot, bank);
         if lowest_root.slot > self.lowest_root.slot {
             println!(
@@ -133,7 +134,7 @@ impl Bank {
             self.nodes[*id].apply(vote);
         }
     }
-    pub fn calc_threshold_slot(&self, vote: &Vote) -> usize {
+    pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
         let count: usize = self
             .nodes
             .iter()
@@ -143,8 +144,9 @@ impl Bank {
                     return 1;
                 }
                 for v in &n.votes {
-                    //only allow proposed lockout to be 2x the observed
-                    if v.slot >= vote.slot && (v.slot + 2 * v.lockout) >= (vote.slot + vote.lockout)
+                    //check if the node has a higher vote with at least 1/2 the lockout
+                    if v.slot >= vote.slot
+                        && (v.slot + mult * v.lockout) >= (vote.slot + vote.lockout)
                     {
                         return 1;
                     }
@@ -155,7 +157,7 @@ impl Bank {
         count
     }
     pub fn threshold_slot(&self, vote: &Vote) -> bool {
-        self.calc_threshold_slot(vote) > (2 * NUM_NODES) / 3
+        self.calc_threshold_slot(2, vote) > (2 * NUM_NODES) / 3
     }
     pub fn supermajority_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
