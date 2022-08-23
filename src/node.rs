@@ -4,7 +4,7 @@ use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-const THRESHOLD: usize = 6;
+pub const THRESHOLD: usize = 6;
 
 pub struct Node {
     pub id: ID,
@@ -220,7 +220,7 @@ impl Node {
         if self.id < 4 {
             println!("{} voting {:?} root: {:?}", self.id, vote, self.tower.root);
         }
-        if self.id < 8 {
+        if self.id < 4 {
             println!(
                 "{} VOTING\ntower: {:?}\nself: {:?}",
                 self.id, tower, self.tower

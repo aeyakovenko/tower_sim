@@ -73,6 +73,9 @@ impl Network {
                     return None;
                 }
                 let vote = n.last_vote();
+                if vote.lockout != 2 {
+                    return None;
+                }
                 Some((i, vote.clone()))
             })
             .collect();
