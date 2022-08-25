@@ -47,11 +47,11 @@ impl Node {
         for (slot, lockout) in proposed_lockouts {
             let v = Vote { slot, lockout };
             if bank.threshold_slot(&v) {
-                if self.id < 4 {
-                    println!("{} threshold check failed at {:?}", self.id, v);
-                }
                 return true;
             }
+        }
+        if self.id < 4 {
+            println!("{} threshold check failed", self.id);
         }
         false
     }
