@@ -90,6 +90,7 @@ impl Node {
         }
         //all the recent forks but those decending from the last vote must have > 1/3 votes
         let mut total = 0;
+        let last_vote_fork = self.compute_fork(last_vote.slot, banks);
         for (slot, stake) in fork_weights {
             if self.blocks.get(slot).is_none() {
                 continue;
@@ -98,9 +99,13 @@ impl Node {
                 //slot is older than last vote
                 continue;
             }
+            if last_vote_fork.iter().find(|x| **x == *slot).is_some() {
+                //slot is a parent of the last voted fork
+                continue;
+            }
             let fork = self.compute_fork(*slot, banks);
             if fork.iter().find(|x| **x == last_vote.slot).is_none() {
-                //slot is not a child of the last vote
+                //slot is not a child of the last voted fork
                 total += stake;
             }
         }

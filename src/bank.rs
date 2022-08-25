@@ -1,5 +1,5 @@
-use crate::tower::{Slot, Tower, Vote};
 use crate::node::THRESHOLD;
+use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 
 pub const NUM_NODES: usize = 997;
