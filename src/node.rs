@@ -56,22 +56,6 @@ impl Node {
         false
     }
 
-    fn compute_fork(&self, slot: Slot, banks: &Banks) -> Vec<Slot> {
-        let mut fork = vec![slot];
-        loop {
-            let last = fork.last().unwrap();
-            if let Some(b) = banks.fork_map.get(last) {
-                if *last == b.parent {
-                    break;
-                }
-                fork.push(b.parent)
-            } else {
-                break;
-            }
-        }
-        fork
-    }
-
     fn optimistic_conf_check(
         &self,
         new_fork: &[Slot],
@@ -90,7 +74,7 @@ impl Node {
         }
         //all the recent forks but those decending from the last vote must have > 1/3 votes
         let mut total = 0;
-        let last_vote_fork = self.compute_fork(last_vote.slot, banks);
+        let last_vote_fork = banks.compute_fork(last_vote.slot);
         for (slot, stake) in fork_weights {
             if self.blocks.get(slot).is_none() {
                 continue;
@@ -103,7 +87,7 @@ impl Node {
                 //slot is a parent of the last voted fork
                 continue;
             }
-            let fork = self.compute_fork(*slot, banks);
+            let fork = banks.compute_fork(*slot);
             if fork.iter().find(|x| **x == last_vote.slot).is_none() {
                 //slot is not a child of the last voted fork
                 total += stake;
@@ -172,7 +156,7 @@ impl Node {
             .map(|(_, y)| *y)
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
-        let heaviest_fork = self.compute_fork(heaviest_slot, banks);
+        let heaviest_fork = banks.compute_fork(heaviest_slot);
         assert!(heaviest_fork
             .iter()
             .find(|x| **x == banks.lowest_root.slot)
@@ -254,6 +238,14 @@ impl Node {
                 v.slot,
                 self.tower
             );
+        }
+        if self.tower.root != tower.root {
+            if self.id < 4 {
+                println!(
+                    "{} updated root {:?} old root: {:?}",
+                    self.id, tower.root, self.tower.root
+                );
+            }
         }
         self.tower = tower;
     }

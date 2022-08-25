@@ -57,6 +57,22 @@ impl Banks {
         self.build_fork_weights();
     }
 
+    pub fn compute_fork(&self, slot: Slot) -> Vec<Slot> {
+        let mut fork = vec![slot];
+        loop {
+            let last = fork.last().unwrap();
+            if let Some(b) = self.fork_map.get(last) {
+                if *last == b.parent {
+                    break;
+                }
+                fork.push(b.parent)
+            } else {
+                break;
+            }
+        }
+        fork
+    }
+
     //only keep forks that are connected to root
     fn gc(&mut self) {
         let mut valid = vec![];
