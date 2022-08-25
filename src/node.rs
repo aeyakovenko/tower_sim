@@ -41,16 +41,19 @@ impl Node {
         let proposed_lockouts = self.tower.compare_lockouts(1 << THRESHOLD, tower);
         let vote = tower.votes.front().unwrap();
         let bank = banks.get(&vote.slot).unwrap();
+        if proposed_lockouts.is_empty() {
+            return true;
+        }
         for (slot, lockout) in proposed_lockouts {
             let v = Vote { slot, lockout };
-            if !bank.threshold_slot(&v) {
+            if bank.threshold_slot(&v) {
                 if self.id < 4 {
                     println!("{} threshold check failed at {:?}", self.id, v);
                 }
-                return false;
+                return true;
             }
         }
-        true
+        false
     }
 
     fn compute_fork(&self, slot: Slot, banks: &Banks) -> Vec<Slot> {
@@ -103,8 +106,8 @@ impl Node {
         }
         total > NUM_NODES / 3
     }
-    pub fn last_vote(&self) -> &Vote {
-        self.tower.votes.front().unwrap_or(&self.tower.root)
+    pub fn latest_vote(&self) -> Option<&Vote> {
+        self.tower.latest_vote()
     }
     pub fn make_block(&self, slot: Slot, votes: Vec<(ID, Vote)>) -> Block {
         let votes: Vec<(ID, Vote)> = votes

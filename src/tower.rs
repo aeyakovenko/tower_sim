@@ -53,6 +53,9 @@ impl Tower {
             if v.slot >= vote.slot {
                 return Err(());
             }
+            if v.slot + v.lockout >= vote.slot {
+                break;
+            }
             if v.slot + v.lockout < vote.slot {
                 expired = Some(i);
             }
@@ -106,8 +109,8 @@ impl Tower {
         rv
     }
 
-    pub fn latest_vote(&self) -> Vote {
-        self.votes.front().unwrap_or(&self.root).clone()
+    pub fn latest_vote(&self) -> Option<&Vote> {
+        self.votes.front()
     }
 }
 

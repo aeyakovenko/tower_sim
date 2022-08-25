@@ -176,7 +176,7 @@ impl Bank {
     //get the latest votes from each node
     pub fn latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
         for (i, n) in self.nodes.iter().enumerate() {
-            let latest = n.latest_vote();
+            let latest = n.latest_vote().unwrap_or(&n.root);
             let e = latest_votes.entry(i).or_insert(latest.slot);
             if *e < latest.slot {
                 *e = latest.slot;

@@ -72,10 +72,7 @@ impl Network {
                 if !Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
                     return None;
                 }
-                let vote = n.last_vote();
-                if vote.lockout != 2 {
-                    return None;
-                }
+                let vote = n.latest_vote()?;
                 Some((i, vote.clone()))
             })
             .collect();
