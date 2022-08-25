@@ -38,20 +38,19 @@ impl Node {
     }
 
     fn threshold_check(&self, tower: &Tower, banks: &HashMap<Slot, Bank>) -> bool {
-        let proposed_lockouts = self.tower.compare_lockouts(1 << THRESHOLD, tower);
+        let proposed_lockouts = self.tower.get_incrased_lockouts(1 << THRESHOLD, tower);
         let vote = tower.votes.front().unwrap();
         let bank = banks.get(&vote.slot).unwrap();
         if proposed_lockouts.is_empty() {
             return true;
         }
-        for (slot, lockout) in proposed_lockouts {
-            let v = Vote { slot, lockout };
-            if bank.threshold_slot(&v) {
-                return true;
-            }
+        let (lockout, slot) = proposed_lockouts.iter().map(|(x,y)| (y,x)).max().unwrap();
+        let v = Vote { slot: *slot, lockout: *lockout };
+        if bank.threshold_slot(&v) {
+            return true;
         }
         if self.id < 4 {
-            println!("{} threshold check failed", self.id);
+            println!("{} threshold check failed {:?}", self.id, v);
         }
         false
     }

@@ -88,7 +88,7 @@ impl Tower {
         Ok(())
     }
     //check if tower has more lockouts on a slot then in self
-    pub fn compare_lockouts(&self, skip_lockout: u64, tower: &Tower) -> HashMap<Slot, u64> {
+    pub fn get_incrased_lockouts(&self, skip_lockout: u64, tower: &Tower) -> HashMap<Slot, u64> {
         let mut rv = HashMap::new();
         let mut set = HashMap::new();
         set.insert(self.root.slot, self.root.lockout);
