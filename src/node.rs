@@ -150,12 +150,14 @@ impl Node {
     }
 
     pub fn vote(&mut self, banks: &Banks) {
+        //filter out for blocks visibile to this nodes partition
         let weights: HashMap<Slot, usize> = banks
             .fork_weights
             .iter()
             .filter(|(x, _)| self.blocks.contains(x))
             .map(|(x, y)| (*x, *y))
             .collect();
+        //compute the heaviest slot
         let heaviest_slot = weights
             .iter()
             .map(|(x, y)| (y, x))
@@ -169,9 +171,7 @@ impl Node {
             .find(|x| **x == banks.lowest_root.slot)
             .is_some());
         self.heaviest_fork = heaviest_fork;
-        //if self.id < 4 {
-        //    println!("{} heaviest fork {:?}", self.id, self.heaviest_fork);
-        //}
+        //simulate the vote
         let mut tower = self.tower.clone();
         let vote = Vote {
             slot: heaviest_slot,
@@ -182,6 +182,8 @@ impl Node {
             //already voted
             return;
         }
+        //check if the lockouts aren't violated
+        //remaining votes in tower should be in the heaviest fork
         if !self.lockout_check(&tower) {
             if self.id < 4 {
                 println!(
@@ -191,6 +193,8 @@ impl Node {
             }
             return;
         }
+        //grab the bank that this is voting on, and simulate the
+        //votes applying to the banks tower state
         let bank = banks.fork_map.get(&heaviest_slot).unwrap();
         //compute the simulated result against the bank state
         let mut result = bank.nodes[self.id].clone();
@@ -201,6 +205,8 @@ impl Node {
             let _ = result.apply(&v);
         }
         //check if the simulated result exceeds the thershold check
+        //if the simulation increases the lockout, the bank should have
+        //2/3+ nodes voting on the locked out slot
         if !self.threshold_check(&result, &banks.fork_map) {
             if self.id < 4 {
                 println!("{} THRESHOLD CHECK FAILED {:?}", self.id, tower);
@@ -217,6 +223,9 @@ impl Node {
             }
             return;
         }
+        //check if this node is switching forks. if its switching forks then
+        //at least 1/3 of the nodes must be voting on forks that are not the last
+        //vote's fork
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights, banks) {
             if self.id < 4 {
                 println!("{} OC CHECK FAILED", self.id);
