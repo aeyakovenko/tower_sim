@@ -45,15 +45,16 @@ impl Node {
         if proposed_lockouts.is_empty() {
             return true;
         }
-        let (lockout, slot) = proposed_lockouts.iter().map(|(x,y)| (y,x)).max().unwrap();
-        let v = Vote { slot: *slot, lockout: *lockout };
-        if bank.threshold_slot(&v) {
-            return true;
+        for (slot, lockout) in proposed_lockouts {
+            let v = Vote { slot, lockout };
+            if !bank.threshold_slot(&v) {
+                if self.id < 4 {
+                    println!("{} {} threshold check failed {:?}", self.id, bank.slot, v);
+                }
+                return false;
+            }
         }
-        if self.id < 4 {
-            println!("{} {} threshold check failed {:?}", self.id, bank.slot, v);
-        }
-        false
+        true
     }
 
     fn optimistic_conf_check(
@@ -106,10 +107,12 @@ impl Node {
         let votes: Vec<_> = votes
             .into_iter()
             .filter(|(_, votes)| {
-                votes.last().is_some() && self.heaviest_fork
-                    .iter()
-                    .find(|x| **x == votes.last().unwrap().slot)
-                    .is_some()
+                votes.last().is_some()
+                    && self
+                        .heaviest_fork
+                        .iter()
+                        .find(|x| **x == votes.last().unwrap().slot)
+                        .is_some()
             })
             .collect();
         Block {
@@ -191,7 +194,7 @@ impl Node {
         let bank = banks.fork_map.get(&heaviest_slot).unwrap();
         //compute the simulated result against the bank state
         let mut result = bank.nodes[self.id].clone();
-        let proposed = tower.votes(); 
+        let proposed = tower.votes();
         assert!(proposed[0].slot <= proposed.last().unwrap().slot);
         for mut v in proposed {
             v.lockout = 2;

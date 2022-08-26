@@ -1,6 +1,6 @@
 use crate::tower::{Slot, Tower, Vote};
-use std::collections::HashSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 pub const NUM_NODES: usize = 997;
 pub type ID = usize;
@@ -151,34 +151,35 @@ impl Bank {
         assert_eq!(self.parent, block.parent);
         for (id, votes) in &block.votes {
             for v in votes {
-                assert!(fork.contains(&v.slot), "proposed vote is not in the bank's fork {:?} {}", fork, v.slot);
+                assert!(
+                    fork.contains(&v.slot),
+                    "proposed vote is not in the bank's fork {:?} {}",
+                    fork,
+                    v.slot
+                );
                 let _e = self.nodes[*id].apply(v);
             }
         }
     }
 
     pub fn print_threshold_slot(&self, mult: u64, vote: &Vote) {
-       self
-            .nodes
-            .iter()
-            .enumerate()
-            .for_each(|(i, n)| {
-                //alredy rooted
-                if n.root.slot >= vote.slot {
+        self.nodes.iter().enumerate().for_each(|(i, n)| {
+            //alredy rooted
+            if n.root.slot >= vote.slot {
+                return;
+            }
+            for v in &n.votes {
+                //check if the node has a higher vote with at least 1/2 the lockout
+                if v.slot >= vote.slot
+                    && (v.slot + (mult * v.lockout)) >= (vote.slot + vote.lockout)
+                {
                     return;
                 }
-                for v in &n.votes {
-                    //check if the node has a higher vote with at least 1/2 the lockout
-                    if v.slot >= vote.slot
-                        && (v.slot + (mult * v.lockout)) >= (vote.slot + vote.lockout)
-                    {
-                        return;
-                    }
-                    if v.slot == vote.slot {
-                        println!("{} {:?}", i, v);
-                    }
+                if v.slot == vote.slot {
+                    println!("{} {:?}", i, v);
                 }
-            });
+            }
+        });
     }
 
     pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
