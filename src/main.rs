@@ -3,7 +3,6 @@ use tower_sim::network;
 fn main() {
     let mut network = network::Network::default();
     let mut num_partitions = 0;
-    let mut partition_slot = 0;
     const TIME: usize = 512;
     for slot in 0..TIME * 1000 {
         network.step();
@@ -11,7 +10,6 @@ fn main() {
         if num_partitions == 0 && slot >= TIME && slot % TIME == 0 {
             println!("CREATING PARTITIONS===================================");
             network.create_partitions(2);
-            partition_slot = slot;
             num_partitions = 4;
         }
         if num_partitions > 0 && slot % (TIME / 8) == 0 {
