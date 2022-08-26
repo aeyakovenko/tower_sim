@@ -38,9 +38,10 @@ impl Node {
     }
 
     fn threshold_check(&self, tower: &Tower, banks: &HashMap<Slot, Bank>) -> bool {
-        let proposed_lockouts = self.tower.get_incrased_lockouts(1 << THRESHOLD, tower);
         let vote = tower.votes.front().unwrap();
         let bank = banks.get(&vote.slot).unwrap();
+        //check if the bank lockouts are increased
+        let proposed_lockouts = bank.nodes[self.id].get_incrased_lockouts(1 << THRESHOLD, tower);
         if proposed_lockouts.is_empty() {
             return true;
         }
@@ -50,7 +51,7 @@ impl Node {
             return true;
         }
         if self.id < 4 {
-            println!("{} threshold check failed {:?}", self.id, v);
+            println!("{} {} threshold check failed {:?}", self.id, bank.slot, v);
         }
         false
     }
@@ -94,16 +95,20 @@ impl Node {
         }
         total > NUM_NODES / 3
     }
-    pub fn latest_vote(&self) -> Option<&Vote> {
-        self.tower.latest_vote()
+    pub fn votes(&self) -> Vec<Vote> {
+        let mut votes = self.tower.votes();
+        for v in &mut votes {
+            v.lockout = 2;
+        }
+        votes
     }
-    pub fn make_block(&self, slot: Slot, votes: Vec<(ID, Vote)>) -> Block {
-        let votes: Vec<(ID, Vote)> = votes
+    pub fn make_block(&self, slot: Slot, votes: Vec<(ID, Vec<Vote>)>) -> Block {
+        let votes: Vec<_> = votes
             .into_iter()
-            .filter(|(_, vote)| {
-                self.heaviest_fork
+            .filter(|(_, votes)| {
+                votes.last().is_some() && self.heaviest_fork
                     .iter()
-                    .find(|x| **x == vote.slot)
+                    .find(|x| **x == votes.last().unwrap().slot)
                     .is_some()
             })
             .collect();
@@ -183,11 +188,19 @@ impl Node {
             }
             return;
         }
-        if !self.threshold_check(&tower, &banks.fork_map) {
+        let bank = banks.fork_map.get(&heaviest_slot).unwrap();
+        //compute the simulated result against the bank state
+        let mut result = bank.nodes[self.id].clone();
+        let proposed = tower.votes(); 
+        assert!(proposed[0].slot <= proposed.last().unwrap().slot);
+        for mut v in proposed {
+            v.lockout = 2;
+            let _ = result.apply(&v);
+        }
+        //check if the simulated result exceeds the thershold check
+        if !self.threshold_check(&result, &banks.fork_map) {
             if self.id < 4 {
                 println!("{} THRESHOLD CHECK FAILED {:?}", self.id, tower);
-                let vote = tower.votes.front().unwrap();
-                let bank = banks.fork_map.get(&vote.slot).unwrap();
                 for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
                     println!(
                         "{} LOCKOUT {:?} {} {:?} {}",
@@ -216,8 +229,6 @@ impl Node {
                 "{} VOTING\ntower: {:?}\nself: {:?}",
                 self.id, tower, self.tower
             );
-            let vote = tower.votes.front().unwrap();
-            let bank = banks.fork_map.get(&vote.slot).unwrap();
             for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
                 println!(
                     "{} LOCKOUT {:?} {} {:?} {}",

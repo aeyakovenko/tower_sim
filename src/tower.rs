@@ -10,6 +10,7 @@ pub struct Vote {
     pub slot: Slot,
     pub lockout: u64,
 }
+
 impl Vote {
     pub fn new(slot: Slot) -> Self {
         Vote { slot, lockout: 2 }
@@ -22,7 +23,7 @@ impl Vote {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Tower {
     pub votes: VecDeque<Vote>,
     pub root: Vote,
@@ -95,18 +96,26 @@ impl Tower {
         for e in &self.votes {
             set.insert(e.slot, e.lockout);
         }
-        if *set.get(&tower.root.slot).unwrap_or(&u64::MAX) < tower.root.lockout {
+        if *set.get(&tower.root.slot).unwrap() < tower.root.lockout {
             rv.insert(tower.root.slot, tower.root.lockout);
         }
         for e in &tower.votes {
             if e.lockout < skip_lockout {
                 continue;
             }
-            if *set.get(&e.slot).unwrap_or(&u64::MAX) < e.lockout {
+            let lockout = *set.get(&e.slot).unwrap_or(&u64::MAX);
+            if lockout < e.lockout {
+                assert_eq!(lockout *2, e.lockout);
                 rv.insert(e.slot, e.lockout);
             }
         }
         rv
+    }
+
+    pub fn votes(&self) -> Vec<Vote> {
+        let mut votes = vec![self.root];
+        votes.extend(self.votes.iter().rev());
+        votes
     }
 
     pub fn latest_vote(&self) -> Option<&Vote> {

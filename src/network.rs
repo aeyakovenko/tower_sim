@@ -4,7 +4,7 @@ use crate::bank::NUM_NODES;
 use crate::node::Node;
 use crate::tower::Slot;
 use crate::tower::Vote;
-use rayon::prelude::*;
+//use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
@@ -72,8 +72,8 @@ impl Network {
                 if !Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
                     return None;
                 }
-                let vote = n.latest_vote()?;
-                Some((i, vote.clone()))
+                let votes = n.votes();
+                Some((i, votes))
             })
             .collect();
         let block = block_producer.make_block(self.slot, votes);

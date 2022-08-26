@@ -1,5 +1,5 @@
-use crate::node::THRESHOLD;
 use crate::tower::{Slot, Tower, Vote};
+use std::collections::HashSet;
 use std::collections::HashMap;
 
 pub const NUM_NODES: usize = 997;
@@ -15,7 +15,7 @@ pub struct Bank {
 pub struct Block {
     pub slot: Slot,
     pub parent: Slot,
-    pub votes: Vec<(ID, Vote)>,
+    pub votes: Vec<(ID, Vec<Vote>)>,
 }
 
 pub struct Banks {
@@ -42,7 +42,9 @@ impl Banks {
         assert!(self.fork_map.get(&block.slot).is_none());
         let parent = self.fork_map.get_mut(&block.parent).unwrap();
         let mut bank = parent.child(block.slot);
-        bank.apply(block);
+        let mut fork: HashSet<_> = self.compute_fork(block.parent).into_iter().collect();
+        fork.insert(bank.slot);
+        bank.apply(block, &fork);
         let lowest_root = bank.lowest_root();
         assert!(self.fork_map.get(&bank.slot).is_none());
         self.fork_map.insert(bank.slot, bank);
@@ -144,13 +146,41 @@ impl Bank {
         self.children.push(slot);
         b
     }
-    pub fn apply(&mut self, block: &Block) {
+    pub fn apply(&mut self, block: &Block, fork: &HashSet<Slot>) {
         assert_eq!(self.slot, block.slot);
         assert_eq!(self.parent, block.parent);
-        for (id, vote) in &block.votes {
-            self.nodes[*id].apply(vote);
+        for (id, votes) in &block.votes {
+            for v in votes {
+                assert!(fork.contains(&v.slot), "proposed vote is not in the bank's fork {:?} {}", fork, v.slot);
+                let _e = self.nodes[*id].apply(v);
+            }
         }
     }
+
+    pub fn print_threshold_slot(&self, mult: u64, vote: &Vote) {
+       self
+            .nodes
+            .iter()
+            .enumerate()
+            .for_each(|(i, n)| {
+                //alredy rooted
+                if n.root.slot >= vote.slot {
+                    return;
+                }
+                for v in &n.votes {
+                    //check if the node has a higher vote with at least 1/2 the lockout
+                    if v.slot >= vote.slot
+                        && (v.slot + (mult * v.lockout)) >= (vote.slot + vote.lockout)
+                    {
+                        return;
+                    }
+                    if v.slot == vote.slot {
+                        println!("{} {:?}", i, v);
+                    }
+                }
+            });
+    }
+
     pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
         let count: usize = self
             .nodes
@@ -163,7 +193,7 @@ impl Bank {
                 for v in &n.votes {
                     //check if the node has a higher vote with at least 1/2 the lockout
                     if v.slot >= vote.slot
-                        && (v.slot + mult * v.lockout) >= (vote.slot + vote.lockout)
+                        && (v.slot + (mult * v.lockout)) >= (vote.slot + vote.lockout)
                     {
                         return 1;
                     }
