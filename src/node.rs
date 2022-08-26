@@ -219,7 +219,7 @@ impl Node {
         }
         if !self.optimistic_conf_check(&self.heaviest_fork, &weights, banks) {
             if self.id < 4 {
-                println!("{} OC check failed", self.id);
+                println!("{} OC CHECK FAILED", self.id);
             }
             return;
         }

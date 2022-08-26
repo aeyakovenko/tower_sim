@@ -47,7 +47,9 @@ impl Network {
         for (block_producer_ix, block) in &self.partitioned_blocks {
             self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
                 //already delivered
-                if new_partitions == 0 || Self::check_same_partition(new_partitions, *block_producer_ix, i){
+                if new_partitions == 0
+                    || Self::check_same_partition(new_partitions, *block_producer_ix, i)
+                {
                     n.set_active_block(*block);
                 }
             });
