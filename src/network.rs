@@ -43,17 +43,16 @@ impl Network {
     pub fn create_partitions(&mut self, num: usize) {
         self.num_partitions = num;
     }
-    pub fn repair_partitions(&mut self) {
+    pub fn repair_partitions(&mut self, new_partitions: usize) {
         for (block_producer_ix, block) in &self.partitioned_blocks {
             self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
                 //already delivered
-                if !Self::check_same_partition(self.num_partitions, *block_producer_ix, i) {
+                if new_partitions == 0 || Self::check_same_partition(new_partitions, *block_producer_ix, i){
                     n.set_active_block(*block);
                 }
             });
         }
-        self.num_partitions = 0;
-        self.partitioned_blocks = VecDeque::new();
+        self.num_partitions = new_partitions;
     }
     pub fn root(&self) -> Vote {
         self.banks.lowest_root
@@ -87,5 +86,7 @@ impl Network {
             self.partitioned_blocks
                 .push_back((block_producer_ix, block.slot));
         }
+        let root_slot = self.root().slot;
+        self.partitioned_blocks.retain(|(_, b)| *b >= root_slot);
     }
 }

@@ -12,12 +12,12 @@ fn main() {
             println!("CREATING PARTITIONS===================================");
             network.create_partitions(2);
             partition_slot = slot;
-            num_partitions = 2;
+            num_partitions = 4;
         }
-        if num_partitions > 0 && partition_slot + TIME / 4 == slot {
+        if num_partitions > 0 && slot % (TIME / 8) == 0 {
             println!("REPAIRING PARTITIONS=================================");
-            network.repair_partitions();
-            num_partitions = 0;
+            num_partitions = num_partitions - 1;
+            network.repair_partitions(num_partitions);
         }
     }
 }
