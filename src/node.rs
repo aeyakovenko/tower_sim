@@ -226,22 +226,6 @@ impl Node {
         if self.id < 4 {
             println!("{} voting {:?} root: {:?}", self.id, vote, self.tower.root);
         }
-        if self.id < 4 {
-            println!(
-                "{} VOTING\ntower: {:?}\nself: {:?}",
-                self.id, tower, self.tower
-            );
-            for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
-                println!(
-                    "{} LOCKOUT {:?} {} {:?} {}",
-                    self.id,
-                    v,
-                    bank.calc_threshold_slot(1, v),
-                    t,
-                    bank.calc_threshold_slot(2, t)
-                );
-            }
-        }
         for v in 1..tower.votes.len() {
             let v = &tower.votes[v];
             assert!(
