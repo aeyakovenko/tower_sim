@@ -46,7 +46,6 @@ impl Network {
     pub fn repair_partitions(&mut self, new_partitions: usize) {
         for (block_producer_ix, block) in &self.partitioned_blocks {
             self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
-                //already delivered
                 if new_partitions == 0
                     || Self::check_same_partition(new_partitions, *block_producer_ix, i)
                 {
