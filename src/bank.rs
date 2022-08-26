@@ -49,16 +49,13 @@ impl Banks {
         assert!(self.fork_map.get(&bank.slot).is_none());
         let mut max_root = 0;
         for n in bank.nodes.iter() {
-            if max_root > n.root.slot && max_root - n.root.slot > 100 {
-                println!("here");
-            }
             if n.root.slot > max_root {
                 max_root = n.root.slot;
             }
         }
-        println!("ROOT DISTANCE {}", max_root - lowest_root.slot);
         self.fork_map.insert(bank.slot, bank);
         if lowest_root.slot > self.lowest_root.slot {
+            println!("ROOT DISTANCE {}", max_root - lowest_root.slot);
             println!(
                 "LOWEST ROOT UPDATE {:?} {:?} MAX: {}",
                 self.lowest_root, lowest_root, max_root
