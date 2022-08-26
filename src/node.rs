@@ -47,14 +47,14 @@ impl Node {
         }
         for (slot, lockout) in proposed_lockouts {
             let v = Vote { slot, lockout };
-            if !bank.threshold_slot(&v) {
+            if bank.threshold_slot(&v) {
                 if self.id < 4 {
                     println!("{} {} threshold check failed {:?}", self.id, bank.slot, v);
                 }
-                return false;
+                return true;
             }
         }
-        true
+        false
     }
 
     fn optimistic_conf_check(
