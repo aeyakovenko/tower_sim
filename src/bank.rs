@@ -15,7 +15,7 @@ pub struct Bank {
     // number of times supermajority roots have increased
     // this squashes ranges of increases into 1
     pub num_super_roots: usize,
-    //used to compute num_super_roots
+    pub parent_num_super_roots: usize,
     pub super_root: Slot,
     pub parent_super_root: Slot,
 }
@@ -150,6 +150,7 @@ impl Bank {
             slot: 0,
             parent: 0,
             num_super_roots: 0,
+            parent_num_super_roots: 0,
             parent_super_root: 0,
             super_root: 0,
             children: vec![],
@@ -165,6 +166,7 @@ impl Bank {
             parent_super_root: self.super_root,
             super_root: self.super_root,
             num_super_roots: self.num_super_roots,
+            parent_num_super_roots: self.num_super_roots,
             frozen: false,
         };
         self.children.push(slot);
