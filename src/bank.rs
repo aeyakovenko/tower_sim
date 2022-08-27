@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 pub const NUM_NODES: usize = 997;
+pub const SUBCOMMITTEE_EPOCH: usize = 64;
 pub type ID = usize;
 
 pub struct Bank {
@@ -227,7 +228,9 @@ impl Bank {
         //2/3 of the nodes are at least at this root
         roots[NUM_NODES / 3]
     }
-
+    pub fn subcommittee_epoch(&self) -> usize {
+        self.parent_num_super_roots / SUBCOMMITTEE_EPOCH
+    }
     fn lowest_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
         roots.sort_by_key(|x| x.slot);
