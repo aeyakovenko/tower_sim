@@ -204,6 +204,12 @@ impl Bank {
         roots[NUM_NODES / 3]
     }
 
+    pub fn supermajority_num_roots(&self) -> usize {
+        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.num_roots).collect();
+        roots.sort();
+        roots[NUM_NODES/3]
+    }
+
     fn lowest_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
         roots.sort_by_key(|x| x.slot);
