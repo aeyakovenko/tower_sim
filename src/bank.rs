@@ -195,7 +195,7 @@ impl Bank {
         count
     }
     pub fn threshold_slot(&self, vote: &Vote) -> bool {
-        self.calc_threshold_slot(2, vote) > (2 * NUM_NODES) / 3
+        self.calc_threshold_slot(1 << THRESHOLD, vote) > (2 * NUM_NODES) / 3
     }
     pub fn supermajority_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
