@@ -184,7 +184,7 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        self.super_root = self.calc_super_root().slot; 
+        self.super_root = self.calc_super_root().slot;
         if self.super_root != self.parent_super_root {
             self.num_super_roots = self.num_super_roots + 1;
         }
