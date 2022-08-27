@@ -179,7 +179,7 @@ impl Bank {
                     return 1;
                 }
                 for v in &n.votes {
-                    if vote.lockout == 1 << THRESHOLD && v.slot > vote.slot {
+                    if vote.lockout == 1 << THRESHOLD && v.slot >= vote.slot {
                         return 1;
                     }
                     //check if the node has a higher vote with at least 1/2 the lockout
