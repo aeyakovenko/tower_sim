@@ -10,7 +10,14 @@ pub struct Bank {
     pub nodes: Vec<Tower>,
     pub slot: Slot,
     pub parent: Slot,
+    pub frozen: bool,
     pub children: Vec<Slot>,
+    // number of times supermajority roots have increased
+    // this squashes ranges of increases into 1
+    pub num_super_roots: usize,
+    //used to compute num_super_roots
+    pub super_root: Slot,
+    pub parent_super_root: Slot,
 }
 
 pub struct Block {
@@ -138,18 +145,27 @@ impl Bank {
             nodes.push(Tower::default());
         }
         Bank {
+            frozen: true,
             nodes,
             slot: 0,
             parent: 0,
+            num_super_roots: 0,
+            parent_super_root: 0,
+            super_root: 0,
             children: vec![],
         }
     }
     pub fn child(&mut self, slot: Slot) -> Self {
+        assert!(self.frozen);
         let b = Bank {
             nodes: self.nodes.clone(),
             slot,
             parent: self.slot,
             children: vec![],
+            parent_super_root: self.super_root,
+            super_root: self.super_root,
+            num_super_roots: self.num_super_roots,
+            frozen: false,
         };
         self.children.push(slot);
         b
@@ -168,6 +184,11 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
+        self.super_root = self.calc_super_root().slot; 
+        if self.super_root != self.parent_super_root {
+            self.num_super_roots = self.num_super_roots + 1;
+        }
+        self.frozen = true;
     }
     pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
         let count: usize = self
@@ -197,17 +218,11 @@ impl Bank {
     pub fn threshold_slot(&self, vote: &Vote) -> bool {
         self.calc_threshold_slot(1 << THRESHOLD, vote) > (2 * NUM_NODES) / 3
     }
-    pub fn supermajority_root(&self) -> Vote {
+    pub fn calc_super_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
         roots.sort_by_key(|x| x.slot);
         //2/3 of the nodes are at least at this root
         roots[NUM_NODES / 3]
-    }
-
-    pub fn supermajority_num_roots(&self) -> usize {
-        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.num_roots).collect();
-        roots.sort();
-        roots[NUM_NODES/3]
     }
 
     fn lowest_root(&self) -> Vote {
