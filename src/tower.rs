@@ -27,11 +27,13 @@ impl Vote {
 pub struct Tower {
     pub votes: VecDeque<Vote>,
     pub root: Vote,
+    pub num_roots: usize,
 }
 
 impl Default for Tower {
     fn default() -> Self {
         Tower {
+            num_roots: 0,
             votes: VecDeque::with_capacity(DEPTH),
             root: Vote {
                 slot: 0,
@@ -84,6 +86,7 @@ impl Tower {
             }
         }
         if root {
+            self.num_roots = self.num_roots + 1;
             self.votes.pop_back();
         }
         Ok(())
