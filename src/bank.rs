@@ -171,6 +171,7 @@ impl Bank {
         b
     }
     pub fn apply(&mut self, block: &Block, fork: &HashSet<Slot>) {
+        assert!(!self.frozen);
         assert_eq!(self.slot, block.slot);
         assert_eq!(self.parent, block.parent);
         for (id, votes) in &block.votes {
