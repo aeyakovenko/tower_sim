@@ -209,7 +209,7 @@ impl Node {
         //2/3+ nodes voting on the locked out slot
         if !self.threshold_check(&result, &banks.fork_map) {
             if self.id < 4 {
-                println!("{} THRESHOLD CHECK FAILED {:?}", self.id, tower);
+                println!("{} THRESHOLD CHECK FAILED", self.id);
                 for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
                     println!(
                         "{} LOCKOUT {:?} {} {:?} {}",
