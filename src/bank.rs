@@ -1,3 +1,4 @@
+use crate::node::THRESHOLD;
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -168,27 +169,6 @@ impl Bank {
             }
         }
     }
-
-    pub fn print_threshold_slot(&self, mult: u64, vote: &Vote) {
-        self.nodes.iter().enumerate().for_each(|(i, n)| {
-            //alredy rooted
-            if n.root.slot >= vote.slot {
-                return;
-            }
-            for v in &n.votes {
-                //check if the node has a higher vote with at least 1/2 the lockout
-                if v.slot >= vote.slot
-                    && (v.slot + (mult * v.lockout)) >= (vote.slot + vote.lockout)
-                {
-                    return;
-                }
-                if v.slot == vote.slot {
-                    println!("{} {:?}", i, v);
-                }
-            }
-        });
-    }
-
     pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
         let count: usize = self
             .nodes
@@ -199,6 +179,9 @@ impl Bank {
                     return 1;
                 }
                 for v in &n.votes {
+                    if vote.lockout == 1 << THRESHOLD && v.slot > vote.slot {
+                        return 1;
+                    }
                     //check if the node has a higher vote with at least 1/2 the lockout
                     if v.slot >= vote.slot
                         && (v.slot + (mult * v.lockout)) >= (vote.slot + vote.lockout)
