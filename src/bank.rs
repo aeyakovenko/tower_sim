@@ -1,10 +1,13 @@
 use crate::node::THRESHOLD;
 use crate::tower::{Slot, Tower, Vote};
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
 pub const NUM_NODES: usize = 997;
 pub const SUBCOMMITTEE_EPOCH: usize = 64;
+pub const SUBCOMMITTEE_SIZE: usize = 200;
 pub type ID = usize;
 
 pub struct Bank {
@@ -13,6 +16,9 @@ pub struct Bank {
     pub parent: Slot,
     pub frozen: bool,
     pub children: Vec<Slot>,
+    //the current primary and secondary
+    pub primary: HashSet<ID>,
+    pub secondary: HashSet<ID>,
     // number of times supermajority roots have increased
     // this squashes ranges of increases into 1
     pub num_super_roots: usize,
@@ -44,6 +50,13 @@ impl Default for Banks {
             lowest_root: Vote::zero(),
         }
     }
+}
+
+pub enum Phase {
+    SecondaryRotationB,
+    PrimaryA2B,
+    SecondaryRotationA,
+    PrimaryB2A,
 }
 
 impl Banks {
@@ -145,6 +158,8 @@ impl Bank {
         for _ in 0..NUM_NODES {
             nodes.push(Tower::default());
         }
+        let primary = Self::calc_subcommittee(0);
+        let secondary = primary.clone();
         Bank {
             frozen: true,
             nodes,
@@ -154,12 +169,14 @@ impl Bank {
             parent_num_super_roots: 0,
             parent_super_root: 0,
             super_root: 0,
+            primary,
+            secondary,
             children: vec![],
         }
     }
     pub fn child(&mut self, slot: Slot) -> Self {
         assert!(self.frozen);
-        let b = Bank {
+        let mut b = Bank {
             nodes: self.nodes.clone(),
             slot,
             parent: self.slot,
@@ -169,7 +186,18 @@ impl Bank {
             num_super_roots: self.num_super_roots,
             parent_num_super_roots: self.num_super_roots,
             frozen: false,
+            primary: self.primary.clone(),
+            secondary: self.secondary.clone(),
         };
+        if b.subcommittee_epoch() != self.subcommittee_epoch() {
+            let epoch = b.subcommittee_epoch();
+            match self.subcommittee_phase() {
+                Phase::SecondaryRotationB => b.secondary = Self::calc_subcommittee(epoch),
+                Phase::PrimaryA2B => std::mem::swap(&mut b.primary, &mut b.secondary),
+                Phase::SecondaryRotationA => b.secondary = Self::calc_subcommittee(epoch),
+                Phase::PrimaryB2A => std::mem::swap(&mut b.primary, &mut b.secondary),
+            }
+        }
         self.children.push(slot);
         b
     }
@@ -228,9 +256,37 @@ impl Bank {
         //2/3 of the nodes are at least at this root
         roots[NUM_NODES / 3]
     }
+
+    fn hash(val: u64) -> u64 {
+        let mut h = DefaultHasher::new();
+        val.hash(&mut h);
+        h.finish()
+    }
+
+    pub fn calc_subcommittee(epoch: usize) -> HashSet<ID> {
+        let mut set = HashSet::new();
+        let mut seed = Self::hash(epoch as u64);
+        for _ in 0..SUBCOMMITTEE_SIZE {
+            set.insert(seed as usize % SUBCOMMITTEE_SIZE);
+            seed = Self::hash(seed);
+        }
+        set
+    }
+
     pub fn subcommittee_epoch(&self) -> usize {
         self.parent_num_super_roots / SUBCOMMITTEE_EPOCH
     }
+
+    pub fn subcommittee_phase(&self) -> Phase {
+        match self.subcommittee_epoch() % 4 {
+            0 => Phase::SecondaryRotationB,
+            1 => Phase::PrimaryA2B,
+            2 => Phase::SecondaryRotationA,
+            3 => Phase::PrimaryB2A,
+            _ => panic!("invalid"),
+        }
+    }
+
     fn lowest_root(&self) -> Vote {
         let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
         roots.sort_by_key(|x| x.slot);
