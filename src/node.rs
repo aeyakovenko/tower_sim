@@ -210,7 +210,7 @@ impl Node {
         if !self.threshold_check(&result, &banks.fork_map) {
             if self.id < 4 {
                 println!("{} THRESHOLD CHECK FAILED", self.id);
-                for (v, t) in self.tower.votes.iter().zip(tower.votes.iter()) {
+                for (v, t) in self.tower.votes.iter().zip(result.votes.iter()) {
                     println!(
                         "{} LOCKOUT {:?} {} {:?} {}",
                         self.id,
