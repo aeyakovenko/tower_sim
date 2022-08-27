@@ -38,7 +38,7 @@ impl Network {
         h.finish()
     }
     fn check_same_partition(num_partitions: usize, a: ID, b: ID) -> bool {
-        num_partitions == 0 || a % num_partitions == b % num_partitions
+        num_partitions == 0 || (a % num_partitions == b % num_partitions)
     }
     pub fn create_partitions(&mut self, num: usize) {
         self.num_partitions = num;
@@ -46,9 +46,7 @@ impl Network {
     pub fn repair_partitions(&mut self, new_partitions: usize) {
         for (block_producer_ix, block) in &self.partitioned_blocks {
             self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
-                if new_partitions == 0
-                    || Self::check_same_partition(new_partitions, *block_producer_ix, i)
-                {
+                if Self::check_same_partition(new_partitions, *block_producer_ix, i) {
                     n.set_active_block(*block);
                 }
             });
