@@ -20,7 +20,6 @@ pub struct Subcommittee {
     pub parent_num_super_roots: usize,
     pub super_root: Slot,
     pub parent_super_root: Slot,
-
 }
 pub struct Bank {
     pub nodes: Vec<Tower>,
@@ -68,12 +67,12 @@ impl Default for Subcommittee {
         let primary = Self::calc_subcommittee(0);
         let secondary = primary.clone();
         Self {
-                parent_super_root: 0,
-                super_root: 0,
-                num_super_roots: 0,
-                parent_num_super_roots: 0,
-                primary,
-                secondary,
+            parent_super_root: 0,
+            super_root: 0,
+            num_super_roots: 0,
+            parent_num_super_roots: 0,
+            primary,
+            secondary,
         }
     }
 }
