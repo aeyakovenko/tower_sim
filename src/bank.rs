@@ -10,12 +10,7 @@ pub const SUBCOMMITTEE_EPOCH: usize = 64;
 pub const SUBCOMMITTEE_SIZE: usize = 200;
 pub type ID = usize;
 
-pub struct Bank {
-    pub nodes: Vec<Tower>,
-    pub slot: Slot,
-    pub parent: Slot,
-    pub frozen: bool,
-    pub children: Vec<Slot>,
+pub struct Subcommittee {
     //the current primary and secondary
     pub primary: HashSet<ID>,
     pub secondary: HashSet<ID>,
@@ -25,6 +20,15 @@ pub struct Bank {
     pub parent_num_super_roots: usize,
     pub super_root: Slot,
     pub parent_super_root: Slot,
+
+}
+pub struct Bank {
+    pub nodes: Vec<Tower>,
+    pub slot: Slot,
+    pub parent: Slot,
+    pub frozen: bool,
+    pub children: Vec<Slot>,
+    pub subcom: Subcommittee,
 }
 
 pub struct Block {
@@ -57,6 +61,83 @@ pub enum Phase {
     PrimaryA2B,
     SecondaryRotationA,
     PrimaryB2A,
+}
+
+impl Default for Subcommittee {
+    fn default() -> Self {
+        let primary = Self::calc_subcommittee(0);
+        let secondary = primary.clone();
+        Self {
+                parent_super_root: 0,
+                super_root: 0,
+                num_super_roots: 0,
+                parent_num_super_roots: 0,
+                primary,
+                secondary,
+        }
+    }
+}
+
+impl Subcommittee {
+    pub fn child(self: &Self) -> Self {
+        Self {
+            parent_super_root: self.super_root,
+            super_root: self.super_root,
+            num_super_roots: self.num_super_roots,
+            //the new subcomittee epoch is activated
+            //on the child bank after the parent is frozen
+            parent_num_super_roots: self.num_super_roots,
+            primary: self.primary.clone(),
+            secondary: self.secondary.clone(),
+        }
+    }
+    pub fn init_child(&mut self, parent: &Self) {
+        if self.subcommittee_epoch() != parent.subcommittee_epoch() {
+            let epoch = self.subcommittee_epoch();
+            match self.subcommittee_phase() {
+                Phase::SecondaryRotationB => self.secondary = Self::calc_subcommittee(epoch),
+                Phase::PrimaryA2B => std::mem::swap(&mut self.primary, &mut self.secondary),
+                Phase::SecondaryRotationA => self.secondary = Self::calc_subcommittee(epoch),
+                Phase::PrimaryB2A => std::mem::swap(&mut self.primary, &mut self.secondary),
+            }
+        }
+    }
+
+    pub fn freeze(&mut self, super_root: Slot) {
+        self.super_root = super_root;
+        if self.super_root != self.parent_super_root {
+            self.num_super_roots = self.num_super_roots + 1;
+        }
+    }
+
+    fn hash(val: u64) -> u64 {
+        let mut h = DefaultHasher::new();
+        val.hash(&mut h);
+        h.finish()
+    }
+
+    fn calc_subcommittee(epoch: usize) -> HashSet<ID> {
+        let mut set = HashSet::new();
+        let mut seed = Self::hash(epoch as u64);
+        for _ in 0..SUBCOMMITTEE_SIZE {
+            set.insert(seed as usize % SUBCOMMITTEE_SIZE);
+            seed = Self::hash(seed);
+        }
+        set
+    }
+    fn subcommittee_epoch(&self) -> usize {
+        self.parent_num_super_roots / SUBCOMMITTEE_EPOCH
+    }
+
+    fn subcommittee_phase(&self) -> Phase {
+        match self.subcommittee_epoch() % 4 {
+            0 => Phase::SecondaryRotationB,
+            1 => Phase::PrimaryA2B,
+            2 => Phase::SecondaryRotationA,
+            3 => Phase::PrimaryB2A,
+            _ => panic!("invalid"),
+        }
+    }
 }
 
 impl Banks {
@@ -158,19 +239,12 @@ impl Bank {
         for _ in 0..NUM_NODES {
             nodes.push(Tower::default());
         }
-        let primary = Self::calc_subcommittee(0);
-        let secondary = primary.clone();
         Bank {
             frozen: true,
             nodes,
             slot: 0,
             parent: 0,
-            num_super_roots: 0,
-            parent_num_super_roots: 0,
-            parent_super_root: 0,
-            super_root: 0,
-            primary,
-            secondary,
+            subcom: Subcommittee::default(),
             children: vec![],
         }
     }
@@ -181,23 +255,10 @@ impl Bank {
             slot,
             parent: self.slot,
             children: vec![],
-            parent_super_root: self.super_root,
-            super_root: self.super_root,
-            num_super_roots: self.num_super_roots,
-            parent_num_super_roots: self.num_super_roots,
+            subcom: self.subcom.child(),
             frozen: false,
-            primary: self.primary.clone(),
-            secondary: self.secondary.clone(),
         };
-        if b.subcommittee_epoch() != self.subcommittee_epoch() {
-            let epoch = b.subcommittee_epoch();
-            match self.subcommittee_phase() {
-                Phase::SecondaryRotationB => b.secondary = Self::calc_subcommittee(epoch),
-                Phase::PrimaryA2B => std::mem::swap(&mut b.primary, &mut b.secondary),
-                Phase::SecondaryRotationA => b.secondary = Self::calc_subcommittee(epoch),
-                Phase::PrimaryB2A => std::mem::swap(&mut b.primary, &mut b.secondary),
-            }
-        }
+        b.subcom.init_child(&self.subcom);
         self.children.push(slot);
         b
     }
@@ -216,10 +277,8 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        self.super_root = self.calc_super_root().slot;
-        if self.super_root != self.parent_super_root {
-            self.num_super_roots = self.num_super_roots + 1;
-        }
+        let super_root = self.calc_super_root().slot;
+        self.subcom.freeze(super_root);
         self.frozen = true;
     }
     pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
@@ -255,36 +314,6 @@ impl Bank {
         roots.sort_by_key(|x| x.slot);
         //2/3 of the nodes are at least at this root
         roots[NUM_NODES / 3]
-    }
-
-    fn hash(val: u64) -> u64 {
-        let mut h = DefaultHasher::new();
-        val.hash(&mut h);
-        h.finish()
-    }
-
-    pub fn calc_subcommittee(epoch: usize) -> HashSet<ID> {
-        let mut set = HashSet::new();
-        let mut seed = Self::hash(epoch as u64);
-        for _ in 0..SUBCOMMITTEE_SIZE {
-            set.insert(seed as usize % SUBCOMMITTEE_SIZE);
-            seed = Self::hash(seed);
-        }
-        set
-    }
-
-    pub fn subcommittee_epoch(&self) -> usize {
-        self.parent_num_super_roots / SUBCOMMITTEE_EPOCH
-    }
-
-    pub fn subcommittee_phase(&self) -> Phase {
-        match self.subcommittee_epoch() % 4 {
-            0 => Phase::SecondaryRotationB,
-            1 => Phase::PrimaryA2B,
-            2 => Phase::SecondaryRotationA,
-            3 => Phase::PrimaryB2A,
-            _ => panic!("invalid"),
-        }
     }
 
     fn lowest_root(&self) -> Vote {
