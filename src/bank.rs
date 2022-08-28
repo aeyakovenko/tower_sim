@@ -56,10 +56,8 @@ impl Default for Banks {
 }
 
 pub enum Phase {
-    SecondaryRotationB,
-    PrimaryA2B,
-    SecondaryRotationA,
-    PrimaryB2A,
+    FlipPrimary,
+    SwapSecondary,
 }
 
 impl Default for Subcommittee {
@@ -94,10 +92,8 @@ impl Subcommittee {
         if self.subcommittee_epoch() != parent.subcommittee_epoch() {
             let epoch = self.subcommittee_epoch();
             match self.subcommittee_phase() {
-                Phase::SecondaryRotationB => self.secondary = Self::calc_subcommittee(epoch),
-                Phase::PrimaryA2B => std::mem::swap(&mut self.primary, &mut self.secondary),
-                Phase::SecondaryRotationA => self.secondary = Self::calc_subcommittee(epoch),
-                Phase::PrimaryB2A => std::mem::swap(&mut self.primary, &mut self.secondary),
+                Phase::FlipPrimary => std::mem::swap(&mut self.primary, &mut self.secondary),
+                Phase::SwapSecondary => self.secondary = Self::calc_subcommittee(epoch),
             }
         }
     }
@@ -129,12 +125,10 @@ impl Subcommittee {
     }
 
     fn subcommittee_phase(&self) -> Phase {
-        match self.subcommittee_epoch() % 4 {
-            0 => Phase::SecondaryRotationB,
-            1 => Phase::PrimaryA2B,
-            2 => Phase::SecondaryRotationA,
-            3 => Phase::PrimaryB2A,
-            _ => panic!("invalid"),
+        match self.subcommittee_epoch() % 2 {
+            0 => Phase::FlipPrimary,
+            1 => Phase::SwapSecondary,
+            _ => panic!("invalid subcommittee phase"),
         }
     }
 }
