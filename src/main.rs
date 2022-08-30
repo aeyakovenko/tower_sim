@@ -7,7 +7,7 @@ fn main() {
     let mut partition_slot = 0;
     for slot in 0..TIME * 1000 {
         network.step();
-        println!("root {:?}", network.root());
+        println!("LOWEST ROOT {:?}", network.lowest_root());
         if num_partitions == 1 && slot >= TIME && slot % TIME == 0 {
             println!("CREATING PARTITIONS===================================");
             network.create_partitions(2);

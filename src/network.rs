@@ -53,7 +53,7 @@ impl Network {
         }
         self.num_partitions = new_partitions;
     }
-    pub fn root(&self) -> Vote {
+    pub fn lowest_root(&self) -> Vote {
         self.banks.lowest_root
     }
     pub fn step(&mut self) {
@@ -85,7 +85,7 @@ impl Network {
             self.partitioned_blocks
                 .push_back((block_producer_ix, block.slot));
         }
-        let root_slot = self.root().slot;
-        self.partitioned_blocks.retain(|(_, b)| *b >= root_slot);
+        let lowest_root = self.lowest_root().slot;
+        self.partitioned_blocks.retain(|(_, b)| *b >= lowest_root);
     }
 }
