@@ -47,7 +47,7 @@ impl Node {
         }
         for (slot, lockout) in proposed_lockouts {
             let v = Vote { slot, lockout };
-            if !bank.threshold_slot(&v) {
+            if !bank.primary_threshold_slot(&v) {
                 if self.id < 4 {
                     println!("{} {} threshold check failed {:?}", self.id, bank.slot, v);
                 }
@@ -152,7 +152,7 @@ impl Node {
     pub fn vote(&mut self, banks: &Banks) {
         //filter out for blocks visibile to this nodes partition
         let weights: HashMap<Slot, usize> = banks
-            .fork_weights
+            .primary_fork_weights
             .iter()
             .filter(|(x, _)| self.blocks.contains(x))
             .map(|(x, y)| (*x, *y))

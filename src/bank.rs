@@ -38,7 +38,7 @@ pub struct Block {
 
 pub struct Banks {
     pub fork_map: HashMap<Slot, Bank>,
-    pub fork_weights: HashMap<Slot, usize>,
+    pub primary_fork_weights: HashMap<Slot, usize>,
     pub lowest_root: Vote,
 }
 
@@ -49,7 +49,7 @@ impl Default for Banks {
         fork_map.insert(0, bank_zero);
         Self {
             fork_map,
-            fork_weights: HashMap::new(),
+            primary_fork_weights: HashMap::new(),
             lowest_root: Vote::zero(),
         }
     }
@@ -140,7 +140,7 @@ impl Banks {
         let mut bank = parent.child(block.slot);
         let mut fork: HashSet<_> = self.compute_fork(block.parent).into_iter().collect();
         fork.insert(bank.slot);
-        bank.apply(block, &fork);
+        bank.apply(&self, block, &fork);
         let lowest_root = bank.lowest_root();
         assert!(self.fork_map.get(&bank.slot).is_none());
         let mut max_root = 0;
@@ -178,6 +178,11 @@ impl Banks {
         fork
     }
 
+    pub fn is_child(&self, slotA: Slot, slotB: Slot) -> bool {
+        let fork = self.compute_fork(slotA);
+        fork.iter().find(|x| **x == slotB)
+    }
+
     //only keep forks that are connected to root
     fn gc(&mut self) {
         let mut valid = vec![];
@@ -201,13 +206,13 @@ impl Banks {
     /// as long as X is the latest vote observed from this validator V
     pub fn build_fork_weights(&mut self) {
         //each validators latest votes
-        let mut latest_votes: HashMap<ID, Slot> = HashMap::new();
+        let mut primary_latest_votes: HashMap<ID, Slot> = HashMap::new();
         for v in self.fork_map.values() {
-            v.latest_votes(&mut latest_votes);
+            v.primary_latest_votes(&mut primary_latest_votes);
         }
         //total stake voting per slot
         let mut slot_votes: HashMap<Slot, usize> = HashMap::new();
-        for (_, v) in &latest_votes {
+        for (_, v) in &primary_latest_votes {
             let e = slot_votes.entry(*v).or_insert(0);
             *e = *e + 1;
         }
@@ -222,7 +227,7 @@ impl Banks {
             let e = weights.entry(child).or_insert(parent_weight);
             *e = *e + *slot_votes.get(&child).unwrap_or(&0);
         }
-        self.fork_weights = weights;
+        self.primary_fork_weights = weights;
     }
 }
 
@@ -255,7 +260,7 @@ impl Bank {
         self.children.push(slot);
         b
     }
-    pub fn apply(&mut self, block: &Block, fork: &HashSet<Slot>) {
+    pub fn apply(&mut self, banks: &Banks, block: &Block, fork: &HashSet<Slot>) {
         assert!(!self.frozen);
         assert_eq!(self.slot, block.slot);
         assert_eq!(self.parent, block.parent);
@@ -270,15 +275,28 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        let super_root = self.calc_super_root().slot;
+        let primary = self.calc_primary_super_root().slot;
+        let secondary = self.calc_secondary_super_root().slot;
+        assert!(
+            banks.is_child(primary, secondary)
+                || banks.is_child(secondary, primary)
+                || secondary == primary,
+            "primary {} and secondary {} diverged",
+            primary,
+            secondary
+        );
+        let super_root = core::cmp::min(primary, secondary);
         self.subcom.freeze(super_root);
         self.frozen = true;
     }
-    pub fn calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
+
+    pub fn primary_calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
         let count: usize = self
-            .nodes
+            .subcom
+            .primary
             .iter()
-            .map(|n| {
+            .map(|i| {
+                let n = &self.nodes[p];
                 //alredy rooted
                 if n.root.slot >= vote.slot {
                     return 1;
@@ -299,14 +317,24 @@ impl Bank {
             .sum();
         count
     }
-    pub fn threshold_slot(&self, vote: &Vote) -> bool {
-        self.calc_threshold_slot(1 << THRESHOLD, vote) > (2 * NUM_NODES) / 3
+
+    pub fn primary_threshold_slot(&self, vote: &Vote) -> bool {
+        self.primary_calc_threshold_slot(1 << THRESHOLD, vote) > (2 * self.subcom.primary.len()) / 3
     }
-    pub fn calc_super_root(&self) -> Vote {
-        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
+
+    pub fn calc_set_super_root(&self, set: &HashSet<ID>) -> Vote {
+        let mut roots: Vec<_> = set.iter().map(|p| self.nodes[p].root).collect();
         roots.sort_by_key(|x| x.slot);
         //2/3 of the nodes are at least at this root
-        roots[NUM_NODES / 3]
+        roots[self.subcom.primary / 3]
+    }
+
+    pub fn calc_primary_super_root(&self) -> Vote {
+        self.calc_set_super_root(&self.subcom.primary)
+    }
+
+    pub fn calc_secondary_super_root(&self) -> Vote {
+        self.calc_set_super_root(&self.subcom.secondary)
     }
 
     fn lowest_root(&self) -> Vote {
@@ -316,8 +344,11 @@ impl Bank {
     }
 
     //get the latest votes from each node
-    pub fn latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
+    pub fn primary_latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
         for (i, n) in self.nodes.iter().enumerate() {
+            if !self.subcom.primary.contains(i) {
+                continue;
+            }
             let latest = n.latest_vote().unwrap_or(&n.root);
             let e = latest_votes.entry(i).or_insert(latest.slot);
             if *e < latest.slot {
