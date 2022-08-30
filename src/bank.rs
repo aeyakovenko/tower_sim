@@ -104,7 +104,9 @@ impl Subcommittee {
         }
     }
 
-    pub fn freeze(&mut self, super_root: Slot) {
+    pub fn freeze(&mut self, primary: Slot, secondary: Slot) {
+        assert!(self.super_root <= primary);
+        let super_root = core::cmp::min(primary, secondary);
         if self.super_root < super_root {
             self.super_root = super_root;
             if self.super_root != self.parent_super_root {
@@ -123,7 +125,7 @@ impl Subcommittee {
         let mut set = HashSet::new();
         let mut seed = Self::hash(epoch as u64);
         for _ in 0..SUBCOMMITTEE_SIZE {
-            set.insert(seed as usize % SUBCOMMITTEE_SIZE);
+            set.insert(seed as usize % NUM_NODES);
             seed = Self::hash(seed);
         }
         set
@@ -184,22 +186,6 @@ impl Banks {
             }
         }
         fork
-    }
-
-    //rooted by both primary and secondary
-    pub fn calc_super_root(&self, bank: &Bank) -> Slot {
-        let primary = bank.calc_primary_super_root().slot;
-        let secondary = bank.calc_secondary_super_root().slot;
-        assert!(
-            secondary == primary
-                || self.is_child(primary, secondary)
-                || self.is_child(secondary, primary),
-            "primary {} and secondary {} diverged",
-            primary,
-            secondary
-        );
-        let super_root = core::cmp::min(primary, secondary);
-        core::cmp::max(super_root, bank.subcom.super_root)
     }
 
     pub fn is_child(&self, slot_a: Slot, slot_b: Slot) -> bool {
@@ -301,8 +287,18 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        let super_root = banks.calc_super_root(&self);
-        self.subcom.freeze(super_root);
+
+        let primary = self.calc_primary_super_root().slot;
+        let secondary = self.calc_secondary_super_root().slot;
+        assert!(
+            secondary == primary
+                || banks.is_child(primary, secondary)
+                || banks.is_child(secondary, primary),
+            "primary {} and secondary {} diverged",
+            primary,
+            secondary
+        );
+        self.subcom.freeze(primary, secondary);
         self.frozen = true;
     }
 
