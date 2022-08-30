@@ -185,7 +185,7 @@ impl Banks {
         assert!(
             secondary == primary
                 || self.is_child(primary, secondary)
-                || self.is_child(secondary, primary)
+                || self.is_child(secondary, primary),
             "primary {} and secondary {} diverged",
             primary,
             secondary
@@ -196,7 +196,7 @@ impl Banks {
 
     pub fn is_child(&self, slotA: Slot, slotB: Slot) -> bool {
         let fork = self.compute_fork(slotA);
-        fork.iter().find(|x| **x == slotB)
+        fork.iter().find(|x| **x == slotB).is_some()
     }
 
     //only keep forks that are connected to root
@@ -302,8 +302,8 @@ impl Bank {
             .subcom
             .primary
             .iter()
-            .map(|i| {
-                let n = &self.nodes[p];
+            .map(|p| {
+                let n = &self.nodes[*p];
                 //alredy rooted
                 if n.root.slot >= vote.slot {
                     return 1;
@@ -330,10 +330,10 @@ impl Bank {
     }
 
     pub fn calc_group_super_root(&self, set: &HashSet<ID>) -> Vote {
-        let mut roots: Vec<_> = set.iter().map(|p| self.nodes[p].root).collect();
+        let mut roots: Vec<_> = set.iter().map(|p| self.nodes[*p].root).collect();
         roots.sort_by_key(|x| x.slot);
         //2/3 of the nodes are at least at this root
-        roots[self.subcom.primary / 3]
+        roots[self.subcom.primary.len() / 3]
     }
 
     pub fn calc_primary_super_root(&self) -> Vote {
@@ -345,7 +345,7 @@ impl Bank {
     }
 
     fn lowest_root(&self) -> Vote {
-        let mut roots: Vec<_> = self.primary.iter().map(|p| self.nodes[p].root).collect();
+        let mut roots: Vec<_> = self.subcom.primary.iter().map(|p| self.nodes[*p].root).collect();
         roots.sort_by_key(|x| x.slot);
         roots[0]
     }
@@ -353,12 +353,15 @@ impl Bank {
     //get the latest votes from each node
     pub fn primary_latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
         for p in self.subcom.primary.iter() {
-            let n = &self.nodes[p];
+            let n = &self.nodes[*p];
             let latest = n.latest_vote().unwrap_or(&n.root);
-            let e = latest_votes.entry(i).or_insert(latest.slot);
+            let e = latest_votes.entry(*p).or_insert(latest.slot);
             if *e < latest.slot {
                 *e = latest.slot;
             }
         }
+    }
+    pub fn check_subcommittee(&self, id: ID) -> bool {
+        self.subcom.primary.contains(&id) || self.subcom.secondary.contains(&id)
     }
 }

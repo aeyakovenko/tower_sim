@@ -171,6 +171,12 @@ impl Node {
             .find(|x| **x == banks.lowest_root.slot)
             .is_some());
         self.heaviest_fork = heaviest_fork;
+        //grab the bank that this is voting on, and simulate the
+        //votes applying to the banks tower state
+        let bank = banks.fork_map.get(&heaviest_slot).unwrap();
+        if !bank.check_subcommittee(self.id) {
+            return;
+        }
         //simulate the vote
         let mut tower = self.tower.clone();
         let vote = Vote {
@@ -193,9 +199,6 @@ impl Node {
             }
             return;
         }
-        //grab the bank that this is voting on, and simulate the
-        //votes applying to the banks tower state
-        let bank = banks.fork_map.get(&heaviest_slot).unwrap();
         //compute the simulated result against the bank state
         let mut result = bank.nodes[self.id].clone();
         let proposed = tower.votes();
@@ -215,9 +218,9 @@ impl Node {
                         "{} LOCKOUT {:?} {} {:?} {}",
                         self.id,
                         v,
-                        bank.calc_threshold_slot(1, v),
+                        bank.primary_calc_threshold_slot(1, v),
                         t,
-                        bank.calc_threshold_slot(2, t)
+                        bank.primary_calc_threshold_slot(2, t)
                     );
                 }
             }
