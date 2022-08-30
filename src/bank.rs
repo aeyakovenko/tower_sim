@@ -92,16 +92,24 @@ impl Subcommittee {
         if self.subcommittee_epoch() != parent.subcommittee_epoch() {
             let epoch = self.subcommittee_epoch();
             match self.subcommittee_phase() {
-                Phase::FlipPrimary => std::mem::swap(&mut self.primary, &mut self.secondary),
-                Phase::SwapSecondary => self.secondary = Self::calc_subcommittee(epoch),
+                Phase::FlipPrimary => {
+                    println!("FLIP PRIMARY");
+                    std::mem::swap(&mut self.primary, &mut self.secondary);
+                }
+                Phase::SwapSecondary => {
+                    println!("SWAP SECONDARY");
+                    self.secondary = Self::calc_subcommittee(epoch);
+                }
             }
         }
     }
 
     pub fn freeze(&mut self, super_root: Slot) {
-        self.super_root = super_root;
-        if self.super_root != self.parent_super_root {
-            self.num_super_roots = self.num_super_roots + 1;
+        if self.super_root < super_root {
+            self.super_root = super_root;
+            if self.super_root != self.parent_super_root {
+                self.num_super_roots = self.num_super_roots + 1;
+            }
         }
     }
 
@@ -179,7 +187,7 @@ impl Banks {
     }
 
     //rooted by both primary and secondary
-    pub fn super_root(&self, bank: &Bank) -> Slot {
+    pub fn calc_super_root(&self, bank: &Bank) -> Slot {
         let primary = bank.calc_primary_super_root().slot;
         let secondary = bank.calc_secondary_super_root().slot;
         assert!(
@@ -191,11 +199,12 @@ impl Banks {
             secondary
         );
         let super_root = core::cmp::min(primary, secondary);
-        super_root
+        core::cmp::max(super_root, bank.subcom.super_root)
     }
 
     pub fn is_child(&self, slotA: Slot, slotB: Slot) -> bool {
         let fork = self.compute_fork(slotA);
+        println!("fork {:?}", fork);
         fork.iter().find(|x| **x == slotB).is_some()
     }
 
@@ -292,7 +301,7 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        let super_root = banks.super_root(&self);
+        let super_root = banks.calc_super_root(&self);
         self.subcom.freeze(super_root);
         self.frozen = true;
     }
@@ -345,7 +354,7 @@ impl Bank {
     }
 
     fn lowest_root(&self) -> Vote {
-        let mut roots: Vec<_> = self.subcom.primary.iter().map(|p| self.nodes[*p].root).collect();
+        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
         roots.sort_by_key(|x| x.slot);
         roots[0]
     }
