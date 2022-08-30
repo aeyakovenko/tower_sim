@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 pub const NUM_NODES: usize = 997;
-pub const SUBCOMMITTEE_EPOCH: usize = 2;
+pub const SUBCOMMITTEE_EPOCH: usize = 1;
 pub const SUBCOMMITTEE_SIZE: usize = 200;
 pub type ID = usize;
 
@@ -205,7 +205,7 @@ impl Banks {
     pub fn is_child(&self, slot_a: Slot, slot_b: Slot) -> bool {
         let fork = self.compute_fork(slot_a);
         println!("fork {:?}", fork);
-        fork.iter().find(|x| **x == slot_a).is_some()
+        fork.iter().find(|x| **x == slot_b).is_some()
     }
 
     //only keep forks that are connected to root
