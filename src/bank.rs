@@ -178,6 +178,22 @@ impl Banks {
         fork
     }
 
+    //rooted by both primary and secondary
+    pub fn super_root(&self, bank: &Bank) -> Slot {
+        let primary = bank.calc_primary_super_root().slot;
+        let secondary = bank.calc_secondary_super_root().slot;
+        assert!(
+            secondary == primary
+                || self.is_child(primary, secondary)
+                || self.is_child(secondary, primary)
+            "primary {} and secondary {} diverged",
+            primary,
+            secondary
+        );
+        let super_root = core::cmp::min(primary, secondary);
+        super_root
+    }
+
     pub fn is_child(&self, slotA: Slot, slotB: Slot) -> bool {
         let fork = self.compute_fork(slotA);
         fork.iter().find(|x| **x == slotB)
@@ -260,6 +276,7 @@ impl Bank {
         self.children.push(slot);
         b
     }
+
     pub fn apply(&mut self, banks: &Banks, block: &Block, fork: &HashSet<Slot>) {
         assert!(!self.frozen);
         assert_eq!(self.slot, block.slot);
@@ -275,17 +292,7 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        let primary = self.calc_primary_super_root().slot;
-        let secondary = self.calc_secondary_super_root().slot;
-        assert!(
-            banks.is_child(primary, secondary)
-                || banks.is_child(secondary, primary)
-                || secondary == primary,
-            "primary {} and secondary {} diverged",
-            primary,
-            secondary
-        );
-        let super_root = core::cmp::min(primary, secondary);
+        let super_root = banks.super_root(&self);
         self.subcom.freeze(super_root);
         self.frozen = true;
     }
@@ -322,7 +329,7 @@ impl Bank {
         self.primary_calc_threshold_slot(1 << THRESHOLD, vote) > (2 * self.subcom.primary.len()) / 3
     }
 
-    pub fn calc_set_super_root(&self, set: &HashSet<ID>) -> Vote {
+    pub fn calc_group_super_root(&self, set: &HashSet<ID>) -> Vote {
         let mut roots: Vec<_> = set.iter().map(|p| self.nodes[p].root).collect();
         roots.sort_by_key(|x| x.slot);
         //2/3 of the nodes are at least at this root
@@ -330,25 +337,23 @@ impl Bank {
     }
 
     pub fn calc_primary_super_root(&self) -> Vote {
-        self.calc_set_super_root(&self.subcom.primary)
+        self.calc_group_super_root(&self.subcom.primary)
     }
 
     pub fn calc_secondary_super_root(&self) -> Vote {
-        self.calc_set_super_root(&self.subcom.secondary)
+        self.calc_group_super_root(&self.subcom.secondary)
     }
 
     fn lowest_root(&self) -> Vote {
-        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
+        let mut roots: Vec<_> = self.primary.iter().map(|p| self.nodes[p].root).collect();
         roots.sort_by_key(|x| x.slot);
         roots[0]
     }
 
     //get the latest votes from each node
     pub fn primary_latest_votes(&self, latest_votes: &mut HashMap<ID, Slot>) {
-        for (i, n) in self.nodes.iter().enumerate() {
-            if !self.subcom.primary.contains(i) {
-                continue;
-            }
+        for p in self.subcom.primary.iter() {
+            let n = &self.nodes[p];
             let latest = n.latest_vote().unwrap_or(&n.root);
             let e = latest_votes.entry(i).or_insert(latest.slot);
             if *e < latest.slot {

@@ -151,14 +151,14 @@ impl Node {
 
     pub fn vote(&mut self, banks: &Banks) {
         //filter out for blocks visibile to this nodes partition
-        let weights: HashMap<Slot, usize> = banks
+        let primary_weights: HashMap<Slot, usize> = banks
             .primary_fork_weights
             .iter()
             .filter(|(x, _)| self.blocks.contains(x))
             .map(|(x, y)| (*x, *y))
             .collect();
         //compute the heaviest slot
-        let heaviest_slot = weights
+        let heaviest_slot = primary_weights
             .iter()
             .map(|(x, y)| (y, x))
             .max()
@@ -226,7 +226,7 @@ impl Node {
         //check if this node is switching forks. if its switching forks then
         //at least 1/3 of the nodes must be voting on forks that are not the last
         //vote's fork
-        if !self.optimistic_conf_check(&self.heaviest_fork, &weights, banks) {
+        if !self.optimistic_conf_check(&self.heaviest_fork, &primary_weights, banks) {
             if self.id < 4 {
                 println!("{} OC CHECK FAILED", self.id);
             }
