@@ -42,12 +42,31 @@ impl Forks {
             let secondary = bank.secondary_super_root().slot;
             let s = self.compute_fork(secondary);
             let p = self.compute_fork(primary);
-            if secondary >= self.lowest_root.slot {
+            if secondary >= self.lowest_root.slot && primary >= self.lowest_root.slot {
                 if secondary > primary {
-                    assert!(s.contains(&primary), "diverged {:?} {}", s, primary,);
+                    assert!(
+                        s.contains(&primary),
+                        "{} diverged {:?} {}",
+                        self.lowest_root.slot,
+                        s,
+                        primary
+                    );
                 }
                 if secondary < primary {
-                    assert!(p.contains(&secondary), "diverged {:?} {}", p, secondary,);
+                    assert!(
+                        p.contains(&secondary),
+                        "{} diverged {:?} {}",
+                        self.lowest_root.slot,
+                        p,
+                        secondary
+                    );
+                }
+            } else {
+                if secondary < self.lowest_root.slot {
+                    assert!(self.roots.contains(&secondary));
+                }
+                if primary < self.lowest_root.slot {
+                    assert!(self.roots.contains(&primary));
                 }
             }
         }
