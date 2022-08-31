@@ -81,12 +81,12 @@ impl Node {
                 //slot is older than last vote
                 continue;
             }
-            if last_vote_fork.iter().find(|x| **x == *slot).is_some() {
+            if last_vote_fork.contains(&slot) {
                 //slot is a parent of the last voted fork
                 continue;
             }
             let fork = forks.compute_fork(*slot);
-            if fork.iter().find(|x| **x == last_vote.slot).is_none() {
+            if !fork.contains(&last_vote.slot) {
                 //slot is not a child of the last voted fork
                 total += stake;
             }
@@ -121,19 +121,19 @@ impl Node {
     //must be in the heaviest fork, which is the same fork
     //that generated the vote
     pub fn lockout_check(&self, tower: &Tower) -> bool {
+        let min = *self.heaviest_fork.iter().min().unwrap();
         if tower.votes.len() > 0 {
             for e in &tower.votes {
-                if self.heaviest_fork.iter().find(|x| **x == e.slot).is_none() {
+                if e.slot < min {
+                    continue;
+                }
+                if !self.heaviest_fork.contains(&e.slot) {
                     return false;
                 }
             }
             true
         } else {
-            let rv = self
-                .heaviest_fork
-                .iter()
-                .find(|x| **x == tower.root.slot)
-                .is_some();
+            let rv = self.heaviest_fork.contains(&tower.root.slot) || tower.root.slot < min;
             assert!(
                 rv,
                 "heaviest fork doesn't contain root {} {:?}",
@@ -160,14 +160,22 @@ impl Node {
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
         let heaviest_fork = forks.compute_fork(heaviest_slot);
-        assert!(heaviest_fork
-            .iter()
-            .find(|x| **x == forks.lowest_root.slot)
-            .is_some());
+        assert!(heaviest_fork.contains(&forks.lowest_root.slot));
         self.heaviest_fork = heaviest_fork;
         //grab the bank that this is voting on, and simulate the
         //votes applying to the forks tower state
         let bank = forks.fork_map.get(&heaviest_slot).unwrap();
+
+        //compute the simulated result against the bank state
+        let mut result = bank.nodes[self.id].clone();
+
+        if bank.check_primary(self.id) {
+            //assert!(result.root.slot + 32 > bank.primary_super_root().slot)
+            if result.root.slot + 32 < bank.primary_super_root().slot {
+                println!("ROOT IS TOO OLD {} {:?}", self.id, self.tower);
+            }
+        }
+
         if !bank.check_subcommittee(self.id) {
             return;
         }
@@ -193,8 +201,6 @@ impl Node {
             }
             return;
         }
-        //compute the simulated result against the bank state
-        let mut result = bank.nodes[self.id].clone();
         let proposed = tower.votes();
         assert!(proposed[0].slot <= proposed.last().unwrap().slot);
         for mut v in proposed {

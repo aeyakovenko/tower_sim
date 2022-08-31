@@ -77,8 +77,8 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-        let primary = self.calc_primary_super_root().slot;
-        let secondary = self.calc_secondary_super_root().slot;
+        let primary = self.primary_super_root().slot;
+        let secondary = self.secondary_super_root().slot;
         self.subcom.freeze(primary, secondary);
         self.frozen = true;
     }
@@ -115,19 +115,19 @@ impl Bank {
         self.primary_calc_threshold_slot(1 << THRESHOLD, vote) > (2 * self.subcom.primary.len()) / 3
     }
 
-    pub fn calc_group_super_root(&self, set: &HashSet<ID>) -> Vote {
+    pub fn group_super_root(&self, set: &HashSet<ID>) -> Vote {
         let mut roots: Vec<_> = set.iter().map(|p| self.nodes[*p].root).collect();
         roots.sort_by_key(|x| x.slot);
         //2/3 of the nodes are at least at this root
         roots[self.subcom.primary.len() / 3]
     }
 
-    pub fn calc_primary_super_root(&self) -> Vote {
-        self.calc_group_super_root(&self.subcom.primary)
+    pub fn primary_super_root(&self) -> Vote {
+        self.group_super_root(&self.subcom.primary)
     }
 
-    pub fn calc_secondary_super_root(&self) -> Vote {
-        self.calc_group_super_root(&self.subcom.secondary)
+    pub fn secondary_super_root(&self) -> Vote {
+        self.group_super_root(&self.subcom.secondary)
     }
 
     pub fn lowest_primary_root(&self) -> Vote {
@@ -151,6 +151,9 @@ impl Bank {
                 *e = latest.slot;
             }
         }
+    }
+    pub fn check_primary(&self, id: ID) -> bool {
+        self.subcom.primary.contains(&id)
     }
     pub fn check_subcommittee(&self, id: ID) -> bool {
         self.subcom.primary.contains(&id) || self.subcom.secondary.contains(&id)

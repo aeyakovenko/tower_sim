@@ -33,8 +33,8 @@ impl Forks {
         bank.apply(block, &fork);
 
         if let Phase::FlipPrimary = bank.subcom.phase() {
-            let primary = bank.calc_primary_super_root().slot;
-            let secondary = bank.calc_secondary_super_root().slot;
+            let primary = bank.primary_super_root().slot;
+            let secondary = bank.secondary_super_root().slot;
             assert!(
                 secondary == primary
                     || self.is_child(primary, secondary)
