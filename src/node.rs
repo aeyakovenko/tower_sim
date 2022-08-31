@@ -59,12 +59,7 @@ impl Node {
         true
     }
 
-    fn optimistic_conf_check(
-        &self,
-        new_fork: &HashSet<Slot>,
-        fork_weights: &HashMap<Slot, usize>,
-        forks: &Forks,
-    ) -> bool {
+    fn optimistic_conf_check(&self, fork_weights: &HashMap<Slot, usize>, forks: &Forks) -> bool {
         // no votes left in tower
         if self.tower.votes.front().is_none() {
             return true;
@@ -72,7 +67,7 @@ impl Node {
         let last_vote = self.tower.votes.front().unwrap();
         // if the last vote is a decendant of the new fork
         // no switching proof is necessary
-        if new_fork.contains(&last_vote.slot) {
+        if self.heaviest_fork.contains(&last_vote.slot) {
             return true;
         }
         //all the recent forks but those decending from the last vote must have > 1/3 votes
@@ -111,10 +106,7 @@ impl Node {
         let votes: Vec<_> = votes
             .into_iter()
             .filter(|(_, votes)| {
-                votes.last().is_some()
-                    && self
-                        .heaviest_fork
-                        .contains(&votes.last().unwrap().slot)
+                votes.last().is_some() && self.heaviest_fork.contains(&votes.last().unwrap().slot)
             })
             .collect();
         Block {
@@ -231,7 +223,7 @@ impl Node {
         //check if this node is switching forks. if its switching forks then
         //at least 1/3 of the nodes must be voting on forks that are not the last
         //vote's fork
-        if !self.optimistic_conf_check(&self.heaviest_fork, &primary_weights, forks) {
+        if !self.optimistic_conf_check(&primary_weights, forks) {
             if self.id < 4 {
                 println!("{} OC CHECK FAILED", self.id);
             }
