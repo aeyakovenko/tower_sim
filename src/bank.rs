@@ -1,4 +1,3 @@
-use crate::forks::Forks;
 use crate::node::THRESHOLD;
 use crate::subcommittee::Subcommittee;
 use crate::tower::{Slot, Tower, Vote};
@@ -58,12 +57,17 @@ impl Bank {
         b
     }
 
-    pub fn apply(&mut self, forks: &Forks, block: &Block, fork: &HashSet<Slot>) {
+    pub fn apply(&mut self, block: &Block, fork: &HashSet<Slot>) {
         assert!(!self.frozen);
         assert_eq!(self.slot, block.slot);
         assert_eq!(self.parent, block.parent);
+        let min = *fork.iter().min().unwrap();
         for (id, votes) in &block.votes {
             for v in votes {
+                if v.slot < min {
+                    //skip votes that are too old, these are comming from a new subcommittee node
+                    continue;
+                }
                 assert!(
                     fork.contains(&v.slot),
                     "proposed vote is not in the bank's fork {:?} {}",
@@ -73,17 +77,8 @@ impl Bank {
                 let _e = self.nodes[*id].apply(v);
             }
         }
-
         let primary = self.calc_primary_super_root().slot;
         let secondary = self.calc_secondary_super_root().slot;
-        assert!(
-            secondary == primary
-                || forks.is_child(primary, secondary)
-                || forks.is_child(secondary, primary),
-            "primary {} and secondary {} diverged",
-            primary,
-            secondary
-        );
         self.subcom.freeze(primary, secondary);
         self.frozen = true;
     }
@@ -135,10 +130,8 @@ impl Bank {
         self.calc_group_super_root(&self.subcom.secondary)
     }
 
-    pub fn lowest_root(&self) -> Vote {
-        let zeros = self.nodes.iter().filter(|n| n.root.slot == 0).count();
-        println!("ZEROS: {:}", zeros);
-        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
+    pub fn lowest_primary_root(&self) -> Vote {
+        let mut roots: Vec<_> = self.subcom.primary.iter().map(|p| self.nodes[*p].root).collect();
         roots.sort_by_key(|x| x.slot);
         roots[0]
     }

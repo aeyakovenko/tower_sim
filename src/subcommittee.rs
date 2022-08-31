@@ -62,9 +62,9 @@ impl Subcommittee {
         }
     }
     pub fn init_child(&mut self, parent: &Self) -> bool {
-        if self.subcommittee_epoch() != parent.subcommittee_epoch() {
-            let epoch = self.subcommittee_epoch();
-            match self.subcommittee_phase() {
+        if self.epoch() != parent.epoch() {
+            let epoch = self.epoch();
+            match self.phase() {
                 Phase::FlipPrimary => {
                     std::mem::swap(&mut self.primary, &mut self.secondary);
                     println!("FLIP PRIMARY {:?}", self.primary);
@@ -99,12 +99,13 @@ impl Subcommittee {
         println!("SET {:?}", set);
         set
     }
-    fn subcommittee_epoch(&self) -> usize {
+
+    fn epoch(&self) -> usize {
         self.parent_num_super_roots / SUBCOMMITTEE_EPOCH
     }
 
-    fn subcommittee_phase(&self) -> Phase {
-        match self.subcommittee_epoch() % 2 {
+    pub fn phase(&self) -> Phase {
+        match self.epoch() % 2 {
             0 => Phase::FlipPrimary,
             1 => Phase::SwapSecondary,
             _ => panic!("invalid subcommittee phase"),

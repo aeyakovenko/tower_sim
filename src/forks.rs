@@ -1,4 +1,5 @@
 use crate::bank::{Bank, Block, ID};
+use crate::subcommittee::{Phase};
 use crate::tower::{Slot, Vote};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -29,8 +30,22 @@ impl Forks {
         let mut bank = parent.child(block.slot);
         let mut fork: HashSet<_> = self.compute_fork(block.parent).into_iter().collect();
         fork.insert(bank.slot);
-        bank.apply(&self, block, &fork);
-        let lowest_root = bank.lowest_root();
+        bank.apply(block, &fork);
+
+        if let Phase::FlipPrimary = bank.subcom.phase() {
+            let primary = bank.calc_primary_super_root().slot;
+            let secondary = bank.calc_secondary_super_root().slot;
+            assert!(
+                secondary == primary
+                    || self.is_child(primary, secondary)
+                    || self.is_child(secondary, primary),
+                "primary {} and secondary {} diverged",
+                primary,
+                secondary
+            );
+        }
+
+        let lowest_root = bank.lowest_primary_root();
         assert!(self.fork_map.get(&bank.slot).is_none());
         let mut max_root = 0;
         for n in bank.nodes.iter() {
