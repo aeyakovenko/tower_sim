@@ -40,19 +40,27 @@ impl Forks {
         if Phase::FlipPrimary == bank.subcom.phase() && parent_phase != Phase::FlipPrimary {
             let primary = bank.primary_super_root().slot;
             let secondary = bank.secondary_super_root().slot;
+            let mut s: Vec<_> = self.compute_fork(secondary).into_iter().collect();
+            let mut p: Vec<_> = self.compute_fork(primary).into_iter().collect();
+            s.sort();
+            p.sort();
             if secondary >= self.lowest_root.slot {
-                assert!(
-                    secondary <= primary || self.is_child(primary, secondary),
-                    "diverged {} {}",
-                    secondary,
-                    primary
-                );
-                assert!(
-                    secondary >= primary || self.is_child(secondary, primary),
-                    "diverged {} {}",
-                    secondary,
-                    primary
-                );
+                if secondary > primary {
+                    assert!(
+                        self.is_child(secondary, primary),
+                        "diverged {:?} {:?}",
+                        s,
+                        p,
+                    );
+                }
+                if secondary < primary {
+                    assert!(
+                        self.is_child(primary, secondary),
+                        "diverged {:?} {:?}",
+                        s,
+                        p,
+                    );
+                }
             }
         }
 
