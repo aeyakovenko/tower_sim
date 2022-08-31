@@ -106,8 +106,8 @@ impl Node {
         votes
     }
     pub fn make_block(&self, slot: Slot, votes: Vec<(ID, Vec<Vote>)>) -> Block {
-        let mut heaviest_slot: Vec<_> = self.heaviest_fork.iter().collect();
-        heaviest_slot.sort();
+        let heaviest_slot = *self.heaviest_fork.iter().max().unwrap();
+        assert!(slot > heaviest_slot);
         let votes: Vec<_> = votes
             .into_iter()
             .filter(|(_, votes)| {
@@ -119,7 +119,7 @@ impl Node {
             .collect();
         Block {
             slot,
-            parent: **heaviest_slot.last().unwrap(), 
+            parent: heaviest_slot,
             votes,
         }
     }
