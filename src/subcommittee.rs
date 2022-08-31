@@ -1,12 +1,11 @@
 use crate::bank::{ID, NUM_NODES};
 use crate::tower::Slot;
+use rand::rngs::StdRng;
+use rand::Rng;
+use rand::SeedableRng;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
-use rand::Rng;
-
 
 pub const SUBCOMMITTEE_EPOCH: usize = 1;
 pub const SUBCOMMITTEE_SIZE: usize = 200;
