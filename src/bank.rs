@@ -47,6 +47,7 @@ impl Bank {
             subcom: self.subcom.child(),
             frozen: false,
         };
+        println!("INIT CHILD {} {}", self.slot, slot);
         let rv = b.subcom.init_child(&self.subcom);
         if rv {
             for s in &self.subcom.primary {
