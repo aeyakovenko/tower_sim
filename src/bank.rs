@@ -48,13 +48,12 @@ impl Bank {
             subcom: self.subcom.child(),
             frozen: false,
         };
-        if slot > 1 {
-            for s in &self.subcom.secondary {
+        let rv = b.subcom.init_child(&self.subcom);
+        if rv {
+            for s in &self.subcom.primary {
                 assert_ne!(self.nodes[*s].root.slot, 0);
             }
         }
-
-        b.subcom.init_child(&self.subcom);
         self.children.push(slot);
         b
     }
@@ -140,11 +139,7 @@ impl Bank {
         let mut roots: Vec<_> = self
             .nodes
             .iter()
-            .enumerate()
-            .map(|(i, n)| {
-                if n.root.slot == 0 {
-                    println!("ZERO ROOT {}", i);
-                }
+            .map(|n| {
                 n.root
             })
             .collect();

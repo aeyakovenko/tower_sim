@@ -3,6 +3,10 @@ use crate::tower::Slot;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+use rand::Rng;
+
 
 pub const SUBCOMMITTEE_EPOCH: usize = 1;
 pub const SUBCOMMITTEE_SIZE: usize = 200;
@@ -58,20 +62,22 @@ impl Subcommittee {
             secondary: self.secondary.clone(),
         }
     }
-    pub fn init_child(&mut self, parent: &Self) {
+    pub fn init_child(&mut self, parent: &Self) -> bool {
         if self.subcommittee_epoch() != parent.subcommittee_epoch() {
             let epoch = self.subcommittee_epoch();
             match self.subcommittee_phase() {
                 Phase::FlipPrimary => {
-                    println!("FLIP PRIMARY");
                     std::mem::swap(&mut self.primary, &mut self.secondary);
+                    println!("FLIP PRIMARY {:?}", self.primary);
+                    return true;
                 }
                 Phase::SwapSecondary => {
-                    println!("SWAP SECONDARY");
                     self.secondary = Self::calc_subcommittee(epoch);
+                    println!("SWAP SECONDARY {:?}", self.secondary);
                 }
             }
         }
+        false
     }
 
     pub fn freeze(&mut self, primary: Slot, secondary: Slot) {
@@ -87,10 +93,9 @@ impl Subcommittee {
 
     fn calc_subcommittee(epoch: usize) -> HashSet<ID> {
         let mut set = HashSet::new();
-        let mut seed = hash(epoch as u64);
+        let mut rng = StdRng::seed_from_u64(epoch as u64);
         for _ in 0..SUBCOMMITTEE_SIZE {
-            set.insert(seed as usize % NUM_NODES);
-            seed = hash(seed);
+            set.insert(rng.gen_range(0..NUM_NODES));
         }
         println!("SET {:?}", set);
         set
