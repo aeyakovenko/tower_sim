@@ -170,10 +170,12 @@ impl Node {
         let mut result = bank.nodes[self.id].clone();
 
         if bank.check_primary(self.id) {
-            //assert!(result.root.slot + 32 > bank.primary_super_root().slot)
-            if result.root.slot + 32 < bank.primary_super_root().slot {
-                println!("ROOT IS TOO OLD {} {:?}", self.id, self.tower);
-            }
+            assert!(
+                result.root.slot + 32 > bank.primary_super_root().slot,
+                "ROOT IS TOO OLD {} {:?}",
+                self.id,
+                self.tower
+            );
         }
 
         if !bank.check_subcommittee(self.id) {
