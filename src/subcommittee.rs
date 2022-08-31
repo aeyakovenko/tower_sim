@@ -80,7 +80,9 @@ impl Subcommittee {
     }
 
     pub fn freeze(&mut self, primary: Slot, secondary: Slot) {
-        assert!(self.super_root <= primary);
+        if self.super_root > primary {
+            println!("SR {} ahead of primary {}", self.super_root, primary);
+        }
         let super_root = core::cmp::min(primary, secondary);
         if self.super_root < super_root {
             self.super_root = super_root;
