@@ -5,8 +5,8 @@ use crate::node::Node;
 use crate::subcommittee::hash;
 use crate::tower::Slot;
 use crate::tower::Vote;
+use rayon::prelude::*;
 use std::collections::HashSet;
-//use rayon::prelude::*;
 use std::collections::VecDeque;
 
 pub struct Network {
@@ -56,7 +56,7 @@ impl Network {
     pub fn step(&mut self) {
         self.slot = self.slot + 1;
         println!("slot {} voting", self.slot);
-        self.nodes.iter_mut().for_each(|n| n.vote(&self.forks));
+        self.nodes.par_iter_mut().for_each(|n| n.vote(&self.forks));
         let block_producer_ix = hash(self.slot) as usize % self.nodes.len();
         let block_producer = &self.nodes[block_producer_ix];
         let votes: Vec<_> = self
