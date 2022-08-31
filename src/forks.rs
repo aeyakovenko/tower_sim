@@ -39,14 +39,16 @@ impl Forks {
         if let Phase::FlipPrimary = bank.subcom.phase() {
             let primary = bank.primary_super_root().slot;
             let secondary = bank.secondary_super_root().slot;
-            assert!(
-                secondary == primary
-                    || self.is_child(primary, secondary)
-                    || self.is_child(secondary, primary),
-                "primary {} and secondary {} diverged",
-                primary,
-                secondary
-            );
+            if secondary >= self.lowest_root.slot {
+                assert!(
+                    secondary <= primary || self.is_child(primary, secondary),
+                    "diverged"
+                );
+                assert!(
+                    secondary >= primary || self.is_child(secondary, primary),
+                    "diverged"
+                );
+            }
         }
 
         let lowest_root = bank.lowest_primary_root();
