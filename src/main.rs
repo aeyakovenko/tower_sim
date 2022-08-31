@@ -5,7 +5,7 @@ fn main() {
     let mut num_partitions = 1;
     const TIME: usize = 256;
     let mut partition_slot = 0;
-    for slot in 0..TIME * 1000 {
+    for slot in 0..TIME * 100_000 {
         network.step();
         println!("LOWEST ROOT {:?}", network.lowest_root());
         if num_partitions == 1 && slot >= TIME && slot % TIME == 0 {
