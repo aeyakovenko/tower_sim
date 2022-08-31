@@ -84,6 +84,31 @@ impl Bank {
         self.frozen = true;
     }
 
+    pub fn oc_slots(&self) -> HashSet<Slot> {
+        let primary = self.check_group_oc(&self.subcom.primary);
+        let secondary = self.check_group_oc(&self.subcom.secondary);
+        primary.intersection(&secondary).cloned().collect()
+    }
+    pub fn check_group_oc(&self, group: &HashSet<ID>) -> HashSet<Slot> {
+        let mut confs: HashMap<Slot, usize> = HashMap::new();
+
+        for p in group {
+            let s = self.nodes[*p]
+                .votes
+                .front()
+                .unwrap_or(&self.nodes[*p].root)
+                .slot;
+            let e = confs.entry(s).or_insert(0);
+            *e = *e + 1;
+        }
+
+        confs
+            .iter()
+            .filter(|(_k, v)| **v > (2 * group.len()) / 3)
+            .map(|(k, _v)| *k)
+            .collect()
+    }
+
     pub fn primary_calc_threshold_slot(&self, mult: u64, vote: &Vote) -> usize {
         let count: usize = self
             .subcom

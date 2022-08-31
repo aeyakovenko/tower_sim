@@ -8,6 +8,7 @@ pub struct Forks {
     pub fork_map: HashMap<Slot, Bank>,
     pub primary_fork_weights: HashMap<Slot, usize>,
     pub lowest_root: Vote,
+    pub roots: HashSet<Slot>,
 }
 
 impl Default for Forks {
@@ -15,7 +16,10 @@ impl Default for Forks {
         let bank_zero = Bank::zero();
         let mut fork_map = HashMap::new();
         fork_map.insert(0, bank_zero);
+        let mut roots = HashSet::new();
+        roots.insert(0);
         Self {
+            roots,
             fork_map,
             primary_fork_weights: HashMap::new(),
             lowest_root: Vote::zero(),
@@ -55,6 +59,10 @@ impl Forks {
         }
         self.fork_map.insert(bank.slot, bank);
         if lowest_root.slot > self.lowest_root.slot {
+            let new_roots = self.compute_fork(lowest_root.slot);
+            assert!(new_roots.contains(&self.lowest_root.slot));
+            self.roots.extend(&new_roots);
+
             println!("ROOT DISTANCE {}", max_root - lowest_root.slot);
             println!(
                 "LOWEST ROOT UPDATE {:?} {:?} MAX: {}",
@@ -104,6 +112,7 @@ impl Forks {
         for v in valid {
             new_banks.insert(v, self.fork_map.remove(&v).unwrap());
         }
+        //self.roots.retain(|x| x + 1000 > self.lowest_root.slot);
         self.fork_map = new_banks;
     }
     /// A validator V's vote on an ancestor X counts towards a descendant
