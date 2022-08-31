@@ -1,26 +1,13 @@
+use crate::forks::Forks;
 use crate::node::THRESHOLD;
+use crate::subcommittee::Subcommittee;
 use crate::tower::{Slot, Tower, Vote};
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 
 pub const NUM_NODES: usize = 997;
-pub const SUBCOMMITTEE_EPOCH: usize = 1;
-pub const SUBCOMMITTEE_SIZE: usize = 200;
 pub type ID = usize;
 
-pub struct Subcommittee {
-    //the current primary and secondary
-    pub primary: HashSet<ID>,
-    pub secondary: HashSet<ID>,
-    // number of times supermajority roots have increased
-    // this squashes ranges of increases into 1
-    pub num_super_roots: usize,
-    pub parent_num_super_roots: usize,
-    pub super_root: Slot,
-    pub parent_super_root: Slot,
-}
 pub struct Bank {
     pub nodes: Vec<Tower>,
     pub slot: Slot,
@@ -34,212 +21,6 @@ pub struct Block {
     pub slot: Slot,
     pub parent: Slot,
     pub votes: Vec<(ID, Vec<Vote>)>,
-}
-
-pub struct Banks {
-    pub fork_map: HashMap<Slot, Bank>,
-    pub primary_fork_weights: HashMap<Slot, usize>,
-    pub lowest_root: Vote,
-}
-
-impl Default for Banks {
-    fn default() -> Self {
-        let bank_zero = Bank::zero();
-        let mut fork_map = HashMap::new();
-        fork_map.insert(0, bank_zero);
-        Self {
-            fork_map,
-            primary_fork_weights: HashMap::new(),
-            lowest_root: Vote::zero(),
-        }
-    }
-}
-
-pub enum Phase {
-    FlipPrimary,
-    SwapSecondary,
-}
-
-impl Default for Subcommittee {
-    fn default() -> Self {
-        let primary = Self::calc_subcommittee(0);
-        let secondary = primary.clone();
-        Self {
-            parent_super_root: 0,
-            super_root: 0,
-            num_super_roots: 0,
-            parent_num_super_roots: 0,
-            primary,
-            secondary,
-        }
-    }
-}
-
-impl Subcommittee {
-    pub fn child(self: &Self) -> Self {
-        Self {
-            parent_super_root: self.super_root,
-            super_root: self.super_root,
-            num_super_roots: self.num_super_roots,
-            //the new subcomittee epoch is activated
-            //on the child bank after the parent is frozen
-            parent_num_super_roots: self.num_super_roots,
-            primary: self.primary.clone(),
-            secondary: self.secondary.clone(),
-        }
-    }
-    pub fn init_child(&mut self, parent: &Self) {
-        if self.subcommittee_epoch() != parent.subcommittee_epoch() {
-            let epoch = self.subcommittee_epoch();
-            match self.subcommittee_phase() {
-                Phase::FlipPrimary => {
-                    println!("FLIP PRIMARY");
-                    std::mem::swap(&mut self.primary, &mut self.secondary);
-                }
-                Phase::SwapSecondary => {
-                    println!("SWAP SECONDARY");
-                    self.secondary = Self::calc_subcommittee(epoch);
-                }
-            }
-        }
-    }
-
-    pub fn freeze(&mut self, primary: Slot, secondary: Slot) {
-        assert!(self.super_root <= primary);
-        let super_root = core::cmp::min(primary, secondary);
-        if self.super_root < super_root {
-            self.super_root = super_root;
-            if self.super_root != self.parent_super_root {
-                self.num_super_roots = self.num_super_roots + 1;
-            }
-        }
-    }
-
-    fn hash(val: u64) -> u64 {
-        let mut h = DefaultHasher::new();
-        val.hash(&mut h);
-        h.finish()
-    }
-
-    fn calc_subcommittee(epoch: usize) -> HashSet<ID> {
-        let mut set = HashSet::new();
-        let mut seed = Self::hash(epoch as u64);
-        for _ in 0..SUBCOMMITTEE_SIZE {
-            set.insert(seed as usize % NUM_NODES);
-            seed = Self::hash(seed);
-        }
-        set
-    }
-    fn subcommittee_epoch(&self) -> usize {
-        self.parent_num_super_roots / SUBCOMMITTEE_EPOCH
-    }
-
-    fn subcommittee_phase(&self) -> Phase {
-        match self.subcommittee_epoch() % 2 {
-            0 => Phase::FlipPrimary,
-            1 => Phase::SwapSecondary,
-            _ => panic!("invalid subcommittee phase"),
-        }
-    }
-}
-
-impl Banks {
-    pub fn apply(&mut self, block: &Block) {
-        assert!(self.fork_map.get(&block.slot).is_none());
-        let parent = self.fork_map.get_mut(&block.parent).unwrap();
-        let mut bank = parent.child(block.slot);
-        let mut fork: HashSet<_> = self.compute_fork(block.parent).into_iter().collect();
-        fork.insert(bank.slot);
-        bank.apply(&self, block, &fork);
-        let lowest_root = bank.lowest_root();
-        assert!(self.fork_map.get(&bank.slot).is_none());
-        let mut max_root = 0;
-        for n in bank.nodes.iter() {
-            if n.root.slot > max_root {
-                max_root = n.root.slot;
-            }
-        }
-        self.fork_map.insert(bank.slot, bank);
-        if lowest_root.slot > self.lowest_root.slot {
-            println!("ROOT DISTANCE {}", max_root - lowest_root.slot);
-            println!(
-                "LOWEST ROOT UPDATE {:?} {:?} MAX: {}",
-                self.lowest_root, lowest_root, max_root
-            );
-            self.lowest_root = lowest_root;
-            self.gc();
-        }
-        self.build_fork_weights();
-    }
-
-    pub fn compute_fork(&self, slot: Slot) -> Vec<Slot> {
-        let mut fork = vec![slot];
-        loop {
-            let last = fork.last().unwrap();
-            if let Some(b) = self.fork_map.get(last) {
-                if *last == b.parent {
-                    break;
-                }
-                fork.push(b.parent)
-            } else {
-                break;
-            }
-        }
-        fork
-    }
-
-    pub fn is_child(&self, slot_a: Slot, slot_b: Slot) -> bool {
-        let fork = self.compute_fork(slot_a);
-        println!("fork {:?}", fork);
-        fork.iter().find(|x| **x == slot_b).is_some()
-    }
-
-    //only keep forks that are connected to root
-    fn gc(&mut self) {
-        let mut valid = vec![];
-
-        println!("START GC {:?}", self.lowest_root);
-        let mut children = vec![self.lowest_root.slot];
-        while !children.is_empty() {
-            let slot = children.pop().unwrap();
-            valid.push(slot);
-            let bank = self.fork_map.get(&slot).unwrap();
-            children.extend_from_slice(&bank.children);
-        }
-        let mut new_banks = HashMap::new();
-        for v in valid {
-            new_banks.insert(v, self.fork_map.remove(&v).unwrap());
-        }
-        self.fork_map = new_banks;
-    }
-    /// A validator V's vote on an ancestor X counts towards a descendant
-    /// Y even if the validator is not locked out on X at Y anymore,
-    /// as long as X is the latest vote observed from this validator V
-    pub fn build_fork_weights(&mut self) {
-        //each validators latest votes
-        let mut primary_latest_votes: HashMap<ID, Slot> = HashMap::new();
-        for v in self.fork_map.values() {
-            v.primary_latest_votes(&mut primary_latest_votes);
-        }
-        //total stake voting per slot
-        let mut slot_votes: HashMap<Slot, usize> = HashMap::new();
-        for (_, v) in &primary_latest_votes {
-            let e = slot_votes.entry(*v).or_insert(0);
-            *e = *e + 1;
-        }
-        //stake weight is inherited from the parent
-        let mut weights: HashMap<Slot, usize> = HashMap::new();
-        let mut children = vec![self.lowest_root.slot];
-        while !children.is_empty() {
-            let child = children.pop().unwrap();
-            let bank = self.fork_map.get(&child).unwrap();
-            children.extend_from_slice(&bank.children);
-            let parent_weight = *weights.get(&bank.parent).unwrap_or(&0);
-            let e = weights.entry(child).or_insert(parent_weight);
-            *e = *e + *slot_votes.get(&child).unwrap_or(&0);
-        }
-        self.primary_fork_weights = weights;
-    }
 }
 
 impl Bank {
@@ -267,12 +48,18 @@ impl Bank {
             subcom: self.subcom.child(),
             frozen: false,
         };
+        if slot > 1 {
+            for s in &self.subcom.secondary {
+                assert_ne!(self.nodes[*s].root.slot, 0);
+            }
+        }
+
         b.subcom.init_child(&self.subcom);
         self.children.push(slot);
         b
     }
 
-    pub fn apply(&mut self, banks: &Banks, block: &Block, fork: &HashSet<Slot>) {
+    pub fn apply(&mut self, forks: &Forks, block: &Block, fork: &HashSet<Slot>) {
         assert!(!self.frozen);
         assert_eq!(self.slot, block.slot);
         assert_eq!(self.parent, block.parent);
@@ -292,8 +79,8 @@ impl Bank {
         let secondary = self.calc_secondary_super_root().slot;
         assert!(
             secondary == primary
-                || banks.is_child(primary, secondary)
-                || banks.is_child(secondary, primary),
+                || forks.is_child(primary, secondary)
+                || forks.is_child(secondary, primary),
             "primary {} and secondary {} diverged",
             primary,
             secondary
@@ -349,8 +136,18 @@ impl Bank {
         self.calc_group_super_root(&self.subcom.secondary)
     }
 
-    fn lowest_root(&self) -> Vote {
-        let mut roots: Vec<_> = self.nodes.iter().map(|n| n.root).collect();
+    pub fn lowest_root(&self) -> Vote {
+        let mut roots: Vec<_> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| {
+                if n.root.slot == 0 {
+                    println!("ZERO ROOT {}", i);
+                }
+                n.root
+            })
+            .collect();
         roots.sort_by_key(|x| x.slot);
         roots[0]
     }

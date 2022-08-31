@@ -1,5 +1,5 @@
-use crate::bank::Banks;
 use crate::bank::{Bank, Block, ID, NUM_NODES};
+use crate::forks::Forks;
 use crate::tower::{Slot, Tower, Vote};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -37,9 +37,9 @@ impl Node {
         self.blocks.retain(|x| *x >= self.tower.root.slot);
     }
 
-    fn threshold_check(&self, tower: &Tower, banks: &HashMap<Slot, Bank>) -> bool {
+    fn threshold_check(&self, tower: &Tower, fork_map: &HashMap<Slot, Bank>) -> bool {
         let vote = tower.votes.front().unwrap();
-        let bank = banks.get(&vote.slot).unwrap();
+        let bank = fork_map.get(&vote.slot).unwrap();
         //check if the bank lockouts are increased
         let proposed_lockouts = bank.nodes[self.id].get_incrased_lockouts(1 << THRESHOLD, tower);
         if proposed_lockouts.is_empty() {
@@ -61,7 +61,7 @@ impl Node {
         &self,
         new_fork: &[Slot],
         fork_weights: &HashMap<Slot, usize>,
-        banks: &Banks,
+        forks: &Forks,
     ) -> bool {
         // no votes left in tower
         if self.tower.votes.front().is_none() {
@@ -75,7 +75,7 @@ impl Node {
         }
         //all the recent forks but those decending from the last vote must have > 1/3 votes
         let mut total = 0;
-        let last_vote_fork = banks.compute_fork(last_vote.slot);
+        let last_vote_fork = forks.compute_fork(last_vote.slot);
         for (slot, stake) in fork_weights {
             if self.blocks.get(slot).is_none() {
                 continue;
@@ -88,7 +88,7 @@ impl Node {
                 //slot is a parent of the last voted fork
                 continue;
             }
-            let fork = banks.compute_fork(*slot);
+            let fork = forks.compute_fork(*slot);
             if fork.iter().find(|x| **x == last_vote.slot).is_none() {
                 //slot is not a child of the last voted fork
                 total += stake;
@@ -149,9 +149,9 @@ impl Node {
         }
     }
 
-    pub fn vote(&mut self, banks: &Banks) {
+    pub fn vote(&mut self, forks: &Forks) {
         //filter out for blocks visibile to this nodes partition
-        let primary_weights: HashMap<Slot, usize> = banks
+        let primary_weights: HashMap<Slot, usize> = forks
             .primary_fork_weights
             .iter()
             .filter(|(x, _)| self.blocks.contains(x))
@@ -165,15 +165,15 @@ impl Node {
             .map(|(_, y)| *y)
             .unwrap_or(0);
         //recursively find the fork for the heaviest slot
-        let heaviest_fork = banks.compute_fork(heaviest_slot);
+        let heaviest_fork = forks.compute_fork(heaviest_slot);
         assert!(heaviest_fork
             .iter()
-            .find(|x| **x == banks.lowest_root.slot)
+            .find(|x| **x == forks.lowest_root.slot)
             .is_some());
         self.heaviest_fork = heaviest_fork;
         //grab the bank that this is voting on, and simulate the
-        //votes applying to the banks tower state
-        let bank = banks.fork_map.get(&heaviest_slot).unwrap();
+        //votes applying to the forks tower state
+        let bank = forks.fork_map.get(&heaviest_slot).unwrap();
         if !bank.check_subcommittee(self.id) {
             return;
         }
@@ -210,7 +210,7 @@ impl Node {
         //check if the simulated result exceeds the thershold check
         //if the simulation increases the lockout, the bank should have
         //2/3+ nodes voting on the locked out slot
-        if !self.threshold_check(&result, &banks.fork_map) {
+        if !self.threshold_check(&result, &forks.fork_map) {
             if self.id < 4 {
                 println!("{} THRESHOLD CHECK FAILED", self.id);
                 for (v, t) in self.tower.votes.iter().zip(result.votes.iter()) {
@@ -229,7 +229,7 @@ impl Node {
         //check if this node is switching forks. if its switching forks then
         //at least 1/3 of the nodes must be voting on forks that are not the last
         //vote's fork
-        if !self.optimistic_conf_check(&self.heaviest_fork, &primary_weights, banks) {
+        if !self.optimistic_conf_check(&self.heaviest_fork, &primary_weights, forks) {
             if self.id < 4 {
                 println!("{} OC CHECK FAILED", self.id);
             }

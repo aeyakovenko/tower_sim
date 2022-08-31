@@ -1,17 +1,16 @@
-use crate::bank::Banks;
 use crate::bank::ID;
 use crate::bank::NUM_NODES;
+use crate::forks::Forks;
 use crate::node::Node;
+use crate::subcommittee::hash;
 use crate::tower::Slot;
 use crate::tower::Vote;
 //use rayon::prelude::*;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::VecDeque;
-use std::hash::{Hash, Hasher};
 
 pub struct Network {
     nodes: Vec<Node>,
-    banks: Banks,
+    forks: Forks,
     slot: Slot,
     num_partitions: usize,
     partitioned_blocks: VecDeque<(ID, Slot)>,
@@ -23,7 +22,7 @@ impl Default for Network {
             nodes.push(Node::zero(i));
         }
         Network {
-            banks: Banks::default(),
+            forks: Forks::default(),
             nodes,
             slot: 0,
             num_partitions: 0,
@@ -32,11 +31,6 @@ impl Default for Network {
     }
 }
 impl Network {
-    fn hash(val: u64) -> u64 {
-        let mut h = DefaultHasher::new();
-        val.hash(&mut h);
-        h.finish()
-    }
     fn check_same_partition(num_partitions: usize, a: ID, b: ID) -> bool {
         num_partitions == 0 || (a % num_partitions == b % num_partitions)
     }
@@ -54,13 +48,13 @@ impl Network {
         self.num_partitions = new_partitions;
     }
     pub fn lowest_root(&self) -> Vote {
-        self.banks.lowest_root
+        self.forks.lowest_root
     }
     pub fn step(&mut self) {
         self.slot = self.slot + 1;
         println!("slot {} voting", self.slot);
-        self.nodes.iter_mut().for_each(|n| n.vote(&self.banks));
-        let block_producer_ix = Self::hash(self.slot) as usize % self.nodes.len();
+        self.nodes.iter_mut().for_each(|n| n.vote(&self.forks));
+        let block_producer_ix = hash(self.slot) as usize % self.nodes.len();
         let block_producer = &self.nodes[block_producer_ix];
         let votes: Vec<_> = self
             .nodes
@@ -75,7 +69,7 @@ impl Network {
             })
             .collect();
         let block = block_producer.make_block(self.slot, votes);
-        self.banks.apply(&block);
+        self.forks.apply(&block);
         self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
             if Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
                 n.set_active_block(self.slot);
