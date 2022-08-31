@@ -131,7 +131,12 @@ impl Bank {
     }
 
     pub fn lowest_primary_root(&self) -> Vote {
-        let mut roots: Vec<_> = self.subcom.primary.iter().map(|p| self.nodes[*p].root).collect();
+        let mut roots: Vec<_> = self
+            .subcom
+            .primary
+            .iter()
+            .map(|p| self.nodes[*p].root)
+            .collect();
         roots.sort_by_key(|x| x.slot);
         roots[0]
     }

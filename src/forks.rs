@@ -1,5 +1,5 @@
 use crate::bank::{Bank, Block, ID};
-use crate::subcommittee::{Phase};
+use crate::subcommittee::Phase;
 use crate::tower::{Slot, Vote};
 use std::collections::HashMap;
 use std::collections::HashSet;
