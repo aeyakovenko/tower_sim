@@ -31,12 +31,13 @@ impl Forks {
     pub fn apply(&mut self, block: &Block) {
         assert!(self.fork_map.get(&block.slot).is_none());
         let parent = self.fork_map.get_mut(&block.parent).unwrap();
+        let parent_phase = parent.subcom.phase();
         let mut bank = parent.child(block.slot);
         let mut fork: HashSet<_> = self.compute_fork(block.parent).into_iter().collect();
         fork.insert(bank.slot);
         bank.apply(block, &fork);
 
-        if let Phase::FlipPrimary = bank.subcom.phase() {
+        if Phase::FlipPrimary == bank.subcom.phase() && parent_phase != Phase::FlipPrimary {
             let primary = bank.primary_super_root().slot;
             let secondary = bank.secondary_super_root().slot;
             if secondary >= self.lowest_root.slot {

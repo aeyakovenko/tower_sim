@@ -22,6 +22,7 @@ pub struct Subcommittee {
     pub parent_super_root: Slot,
 }
 
+#[derive(PartialEq)]
 pub enum Phase {
     FlipPrimary,
     SwapSecondary,
