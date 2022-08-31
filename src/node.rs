@@ -169,17 +169,6 @@ impl Node {
         //compute the simulated result against the bank state
         let mut result = bank.nodes[self.id].clone();
 
-        if bank.check_primary(self.id) {
-            //this should never happen, unless nodes in the primary subcommittee are
-            //falling behind.
-            assert!(
-                result.root.slot + 32 > bank.primary_super_root().slot,
-                "ROOT IS TOO OLD {} {:?}",
-                self.id,
-                self.tower
-            );
-        }
-
         if !bank.check_subcommittee(self.id) {
             return;
         }
