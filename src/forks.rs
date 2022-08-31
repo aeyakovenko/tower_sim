@@ -51,7 +51,7 @@ impl Forks {
         self.build_fork_weights();
     }
 
-    pub fn compute_fork(&self, slot: Slot) -> Vec<Slot> {
+    pub fn compute_fork(&self, slot: Slot) -> HashSet<Slot> {
         let mut fork = vec![slot];
         loop {
             let last = fork.last().unwrap();
@@ -64,13 +64,13 @@ impl Forks {
                 break;
             }
         }
-        fork
+        fork.into_iter().collect()
     }
 
     pub fn is_child(&self, slot_a: Slot, slot_b: Slot) -> bool {
         let fork = self.compute_fork(slot_a);
         println!("fork {:?}", fork);
-        fork.iter().find(|x| **x == slot_b).is_some()
+        fork.contains(&slot_b)
     }
 
     //only keep forks that are connected to root

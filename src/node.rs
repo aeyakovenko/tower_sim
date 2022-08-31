@@ -11,18 +11,20 @@ pub struct Node {
     //local view of the bank forks
     blocks: HashSet<Slot>,
     tower: Tower,
-    pub heaviest_fork: Vec<Slot>,
+    pub heaviest_fork: HashSet<Slot>,
 }
 
 impl Node {
     pub fn zero(id: ID) -> Self {
         let mut blocks = HashSet::new();
         blocks.insert(0);
+        let mut set = HashSet::new();
+        set.insert(0);
         Node {
             id,
             blocks,
             tower: Tower::default(),
-            heaviest_fork: vec![0],
+            heaviest_fork: set,
         }
     }
 
@@ -59,7 +61,7 @@ impl Node {
 
     fn optimistic_conf_check(
         &self,
-        new_fork: &[Slot],
+        new_fork: &HashSet<Slot>,
         fork_weights: &HashMap<Slot, usize>,
         forks: &Forks,
     ) -> bool {
@@ -70,7 +72,7 @@ impl Node {
         let last_vote = self.tower.votes.front().unwrap();
         // if the last vote is a decendant of the new fork
         // no switching proof is necessary
-        if new_fork.iter().find(|x| **x == last_vote.slot).is_some() {
+        if new_fork.contains(&last_vote.slot) {
             return true;
         }
         //all the recent forks but those decending from the last vote must have > 1/3 votes
@@ -104,20 +106,20 @@ impl Node {
         votes
     }
     pub fn make_block(&self, slot: Slot, votes: Vec<(ID, Vec<Vote>)>) -> Block {
+        let mut heaviest_slot: Vec<_> = self.heaviest_fork.iter().collect();
+        heaviest_slot.sort();
         let votes: Vec<_> = votes
             .into_iter()
             .filter(|(_, votes)| {
                 votes.last().is_some()
                     && self
                         .heaviest_fork
-                        .iter()
-                        .find(|x| **x == votes.last().unwrap().slot)
-                        .is_some()
+                        .contains(&votes.last().unwrap().slot)
             })
             .collect();
         Block {
             slot,
-            parent: *self.heaviest_fork.get(0).unwrap_or(&0),
+            parent: **heaviest_slot.last().unwrap(), 
             votes,
         }
     }
