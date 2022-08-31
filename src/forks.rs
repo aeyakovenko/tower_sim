@@ -40,28 +40,14 @@ impl Forks {
         if Phase::FlipPrimary == bank.subcom.phase() && parent_phase != Phase::FlipPrimary {
             let primary = bank.primary_super_root().slot;
             let secondary = bank.secondary_super_root().slot;
-            let mut s: Vec<_> = self.compute_fork(secondary).into_iter().collect();
-            let mut p: Vec<_> = self.compute_fork(primary).into_iter().collect();
-            s.sort();
-            p.sort();
+            let s = self.compute_fork(secondary);
+            let p = self.compute_fork(primary);
             if secondary >= self.lowest_root.slot {
                 if secondary > primary {
-                    assert!(
-                        self.is_child(primary, secondary),
-                        "diverged {:?} {:?} {}",
-                        s,
-                        p,
-                        self.lowest_root.slot
-                    );
+                    assert!(s.contains(&primary), "diverged {:?} {}", s, primary,);
                 }
                 if secondary < primary {
-                    assert!(
-                        self.is_child(secondary, primary),
-                        "diverged {:?} {:?} {}",
-                        s,
-                        p,
-                        self.lowest_root.slot
-                    );
+                    assert!(p.contains(&secondary), "diverged {:?} {}", p, secondary,);
                 }
             }
         }
@@ -105,12 +91,6 @@ impl Forks {
             }
         }
         fork.into_iter().collect()
-    }
-
-    pub fn is_child(&self, slot_a: Slot, slot_b: Slot) -> bool {
-        let fork = self.compute_fork(slot_a);
-        println!("fork {:?}", fork);
-        fork.contains(&slot_b)
     }
 
     //only keep forks that are connected to root
