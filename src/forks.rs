@@ -48,17 +48,19 @@ impl Forks {
                 if secondary > primary {
                     assert!(
                         self.is_child(secondary, primary),
-                        "diverged {:?} {:?}",
+                        "diverged {:?} {:?} {}",
                         s,
                         p,
+                        self.lowest_root.slot
                     );
                 }
                 if secondary < primary {
                     assert!(
                         self.is_child(primary, secondary),
-                        "diverged {:?} {:?}",
+                        "diverged {:?} {:?} {}",
                         s,
                         p,
+                        self.lowest_root.slot
                     );
                 }
             }
