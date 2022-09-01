@@ -30,14 +30,11 @@ is scheduled for its first epoch.
 * subcommittee seed: The seed used to generate the random sample of
 nodes. `slow_hash(penultimate snapshot hash, voting epoch number)`
 
-* super root: The minimal root between primary and secondary
-supermajority roots.
+* super root: The min of the primary and secondary supermajority
+roots.
 
 * SRI - super root increase: When the super root is increased by
-any number of roots in a child bank.
-
-* Voting epoch: the number of SRIs that the voting subcommittee
-is voting for. This is separate from the leader schedule epoch.
+any number of super roots between the parent and child bank.
 
 ### Subcommittee Rotation
 
@@ -48,9 +45,17 @@ B1 B1 b1 b2 B2 B2 b2 b3 B3 B3
 ```
 
 Voting subcommittee is composed of a **primary** and **secondary**
-committies. The voting epoch boundary occurs after N super root
-increases. The child bank that detects the Nth SRI is what activates
-the rotation.
+committies. The rotation occurs after N super root increases. The
+child bank that detects the Nth **SRI** is what activates the rotation.
+
+Network should be stable with N = 1. Since the epoch boundary depends
+on the number of **SRIs**, it is not a fixed number of slots or a
+fixed number of roots.  At N=1 the primary rotation is likley to
+take 1 root, and the secondary rotation likely to take many roots
+as the **secondary** catches up with the **primary**.
+
+The subcommittee rotation is computed before any vote processing
+as part of Bank creation.
 
 #### Primary Rotation
 
