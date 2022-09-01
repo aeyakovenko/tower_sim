@@ -89,7 +89,7 @@ impl Network {
         println!("OC SLOTS {:?}", self.oc_slots);
         self.oc_slots.retain(|s| !self.forks.roots.contains(s));
         for s in &self.oc_slots {
-            assert!(*s >= lowest_root);
+            assert!(*s >= lowest_root, "OC failed {}", *s);
         }
     }
 }
