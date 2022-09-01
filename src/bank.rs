@@ -133,7 +133,7 @@ impl Bank {
     }
 
     pub fn primary_threshold_slot(&self, vote: &Vote) -> bool {
-        self.primary_calc_threshold_slot(1<<4, vote) > (2 * self.subcom.primary.len()) / 3
+        self.primary_calc_threshold_slot(1 << 4, vote) > (2 * self.subcom.primary.len()) / 3
     }
 
     pub fn group_super_root(&self, set: &HashSet<ID>) -> Vote {
