@@ -62,7 +62,7 @@ impl Tower {
             }
         }
         if let Some(i) = expired {
-            for _ in 0..i {
+            for _ in 0..(i + 1) {
                 self.votes.pop_front();
             }
         }
@@ -124,75 +124,14 @@ impl Tower {
 }
 
 #[test]
-fn test_compare_lockouts_1() {
-    let mut t1 = Tower::default();
-    let mut t2 = Tower::default();
-    let v = Vote {
-        slot: 1,
-        lockout: 2,
-    };
-    assert!(!t1.compare_lockouts(0, &t2));
-    t1.apply(&v);
-    t2.apply(&v);
-    assert!(!t1.compare_lockouts(0, &t2));
-}
-
-#[test]
-fn test_compare_lockouts_2() {
-    let mut t1 = Tower::default();
-    let mut t2 = Tower::default();
-    assert!(!t1.compare_lockouts(0, &t2));
-    let v1 = Vote {
-        slot: 1,
-        lockout: 2,
-    };
-    t1.apply(&v1);
-    let v2 = Vote {
-        slot: 2,
-        lockout: 2,
-    };
-    t2.apply(&v1);
-    t2.apply(&v2);
-    assert!(t1.compare_lockouts(0, &t2));
-}
-
-#[test]
-fn test_compare_lockouts_3() {
-    let mut t1 = Tower::default();
-    let mut t2 = Tower::default();
-    assert!(!t1.compare_lockouts(0, &t2));
-    let v1 = Vote {
-        slot: 1,
-        lockout: 2,
-    };
-    let v2 = Vote {
-        slot: 2,
-        lockout: 2,
-    };
-    let v3 = Vote {
-        slot: 5,
-        lockout: 2,
-    };
-
-    t1.apply(&v1);
-    t1.apply(&v2);
-    t2.apply(&v1);
-    t2.apply(&v2);
-    t2.apply(&v3);
-    println!("votes {:?}", t2.votes);
-    println!("votes {:?}", t1.votes);
-    assert!(!t1.compare_lockouts(0, &t2));
-}
-
-#[test]
 fn test_apply() {
     let mut t = Tower::default();
     let v = Vote {
         slot: 1,
         lockout: 2,
     };
-    t.apply(&v);
-    assert_eq!(t.latest_vote(), v);
+    assert!(t.apply(&v).is_ok());
+    assert_eq!(*t.latest_vote().unwrap(), v);
 }
 
 #[test]
@@ -203,7 +142,7 @@ fn test_root() {
             slot: i as u64,
             lockout: 2,
         };
-        t.apply(&v);
+        assert!(t.apply(&v).is_ok());
     }
     let root = Vote {
         slot: 1,
@@ -220,7 +159,7 @@ fn test_pop_votes() {
             slot: i as u64,
             lockout: 2,
         };
-        t.apply(&v);
+        assert!(t.apply(&v).is_ok());
     }
     let root = Vote {
         slot: 0,
@@ -240,7 +179,7 @@ fn test_pop_votes() {
         slot: DEPTH as u64 + 8,
         lockout: 2,
     };
-    t.apply(&vote);
+    assert!(t.apply(&vote).is_ok());
     assert_eq!(t.root, root);
     let _ = test_votes.pop_front();
     let _ = test_votes.pop_front();
@@ -252,7 +191,7 @@ fn test_pop_votes() {
         slot: DEPTH as u64 + 9,
         lockout: 2,
     };
-    t.apply(&vote);
+    assert!(t.apply(&vote).is_ok());
     test_votes.push_front(vote);
     test_votes[1].lockout = 2 * test_votes[1].lockout;
     assert_eq!(t.votes, test_votes);
@@ -261,7 +200,7 @@ fn test_pop_votes() {
         slot: DEPTH as u64 + 10,
         lockout: 2,
     };
-    t.apply(&vote);
+    assert!(t.apply(&vote).is_ok());
     test_votes.push_front(vote);
     test_votes[1].lockout = 2 * test_votes[1].lockout;
     test_votes[2].lockout = 2 * test_votes[2].lockout;
@@ -271,7 +210,7 @@ fn test_pop_votes() {
         slot: DEPTH as u64 + 11,
         lockout: 2,
     };
-    t.apply(&vote);
+    assert!(t.apply(&vote).is_ok());
     let root = Vote {
         slot: 1,
         lockout: 1 << DEPTH,
