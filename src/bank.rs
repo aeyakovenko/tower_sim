@@ -48,12 +48,7 @@ impl Bank {
             frozen: false,
         };
         println!("INIT CHILD {} {}", self.slot, slot);
-        let rv = b.subcom.init_child(&self.subcom);
-        if rv {
-            for s in &self.subcom.primary {
-                assert_ne!(self.nodes[*s].root.slot, 0);
-            }
-        }
+        b.subcom.init_child(&self.subcom);
         self.children.push(slot);
         b
     }

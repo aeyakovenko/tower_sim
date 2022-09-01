@@ -62,14 +62,13 @@ impl Subcommittee {
             secondary: self.secondary.clone(),
         }
     }
-    pub fn init_child(&mut self, parent: &Self) -> bool {
+    pub fn init_child(&mut self, parent: &Self) {
         if self.epoch() != parent.epoch() {
             let epoch = self.epoch();
             match self.phase() {
                 Phase::FlipPrimary => {
                     std::mem::swap(&mut self.primary, &mut self.secondary);
                     println!("FLIP PRIMARY {:?}", self.primary);
-                    return true;
                 }
                 Phase::SwapSecondary => {
                     self.secondary = Self::calc_subcommittee(epoch);
@@ -77,7 +76,6 @@ impl Subcommittee {
                 }
             }
         }
-        false
     }
 
     pub fn freeze(&mut self, primary: Slot, secondary: Slot) {
