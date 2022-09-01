@@ -105,7 +105,7 @@ impl Tower {
             }
             let lockout = *set.get(&e.slot).unwrap_or(&u64::MAX);
             if lockout < e.lockout {
-                assert_eq!(lockout * 2, e.lockout);
+                assert_eq!(lockout * 2, e.lockout, "lockout mismatch {:?} {:?}", self, tower);
                 rv.insert(e.slot, e.lockout);
             }
         }
