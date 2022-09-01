@@ -22,19 +22,19 @@ fn partition_test_1() {
     let partitions = [(0, 666), (666, 998), (998, 999), (999, 1000)];
 
     //1. The 1A group votes on slots 0 to 31, so its root stays 0
-    network.step(&partitions, &[false, false, true, false]);
+    network.step(&partitions, &[false, false, true, false], 0);
     //2. The 66  group votes 1 to 32 so makes new root at 1
     for _ in 0..DEPTH - 2 {
-        network.partition_step(&partitions, &[true, false, true, false]);
+        network.partition_step(&partitions, &[true, false, true, false], 0);
     }
-    network.partition_step(&partitions, &[true, false, false, false]);
+    network.partition_step(&partitions, &[true, false, false, false], 0);
     //3. All these votes have landed in both forks
 
     //4. Now after the fork,  1B group starts voting on the top fork on slots 0 -> 36, so  it's rooting common ancestors 0 -> 32, updating the SMJRwhen it finally roots 1
-    network.partition_step(&partitions, &[false, false, false, true]);
-    network.partition_step(&partitions, &[false, false, false, true]);
-    network.partition_step(&partitions, &[false, false, false, true]);
-    network.partition_step(&partitions, &[false, false, true, true]);
+    network.partition_step(&partitions, &[false, false, false, true], 999);
+    network.partition_step(&partitions, &[false, false, false, true], 999);
+    network.partition_step(&partitions, &[false, false, false, true], 999);
+    network.partition_step(&partitions, &[false, false, false, true], 999);
 
     //5. Meanwhile the 32 group at some point starts voting on the bottom fork, making that the heaviest fork
     for _ in 0..512 {
