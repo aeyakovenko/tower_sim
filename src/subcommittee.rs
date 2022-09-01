@@ -89,6 +89,7 @@ impl Subcommittee {
             self.super_root = super_root;
             if self.super_root != self.parent_super_root {
                 self.num_super_roots = self.num_super_roots + 1;
+                println!("NEW SR: {}", self.super_root);
             }
         }
     }
