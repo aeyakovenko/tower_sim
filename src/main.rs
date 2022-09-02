@@ -39,6 +39,7 @@ fn partition_test_1() {
     //3. All these votes have landed in both forks
 
     //4. Now after the fork,  1B group starts voting on the top fork on slots 0 -> 36, so  it's rooting common ancestors 0 -> 32, updating the SMJRwhen it finally roots 1
+    network.repair_partitions(&partitions, &[true, false, false, true]);
     network.partition_step(&partitions, &[false, false, false, true], 999);
     network.partition_step(&partitions, &[false, false, false, true], 999);
     network.partition_step(&partitions, &[false, false, false, true], 999);
@@ -46,8 +47,9 @@ fn partition_test_1() {
     println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //5. Meanwhile the 32 group at some point starts voting on the bottom fork, making that the heaviest fork
+    network.repair_partitions(&partitions, &[true, true, false, false]);
     for _ in 0..512 {
-        network.partition_step(&partitions, &[false, true, false, false, false], 666);
+        network.partition_step(&partitions, &[false, true, false, false], 666);
         println!("LOWEST ROOT {:?}", network.lowest_root());
     }
     let root = network.lowest_root();

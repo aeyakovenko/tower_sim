@@ -124,7 +124,7 @@ impl Network {
         a_active && b_active
     }
 
-    fn repair_partitions(&mut self, partitions: &[(usize, usize)], active: &[bool]) {
+    pub fn repair_partitions(&mut self, partitions: &[(usize, usize)], active: &[bool]) {
         for (bp, slot) in &self.partitioned_blocks {
             for (id, n) in self.nodes.iter_mut().enumerate() {
                 if Self::check_same_partition(partitions, active, *bp, id) {
