@@ -59,7 +59,7 @@ fn four_partitions() {
         println!("LOWEST ROOT {:?}", network.lowest_root());
         if num_partitions == 1 && slot >= TIME && slot % TIME == 0 {
             println!("CREATING PARTITIONS===================================");
-            num_partitions = 4;
+            num_partitions = 3;
             partition_slot = slot;
         }
         if num_partitions > 1 && partition_slot + TIME / 8 <= slot && slot % (TIME / 8) == 0 {

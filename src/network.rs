@@ -85,9 +85,13 @@ impl Network {
             let num = NUM_NODES / num_partitions;
             assert!(num > 0, "invalid number of partitions");
             let min = i * num;
-            let max = std::cmp::min(NUM_NODES, (i + 1) * num);
+            let mut max = (i + 1) * num;
+            if i == num_partitions - 1 {
+                max = NUM_NODES;
+            }
             partitions.push((min, max));
         }
+        assert_eq!(partitions.last().unwrap().1, NUM_NODES);
         let mut active = vec![];
         for (s, e) in &partitions {
             if block_producer_ix >= *s && block_producer_ix < *e {
@@ -96,6 +100,7 @@ impl Network {
                 active.push(false);
             }
         }
+        assert_eq!(active.iter().filter(|x| **x).count(), 1);
         self.partition_step(&partitions, &active, block_producer_ix);
     }
 
