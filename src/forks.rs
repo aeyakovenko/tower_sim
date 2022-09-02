@@ -96,6 +96,17 @@ impl Forks {
         self.build_fork_weights();
     }
 
+    pub fn latest_primary(&self) -> HashSet<ID> {
+        self.fork_map
+            .iter()
+            .max_by_key(|(a, _)| *a)
+            .unwrap()
+            .1
+            .subcom
+            .primary
+            .clone()
+    }
+
     pub fn compute_fork(&self, slot: Slot) -> HashSet<Slot> {
         let mut fork = vec![slot];
         loop {

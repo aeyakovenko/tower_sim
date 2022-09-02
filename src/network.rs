@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 
 pub struct Network {
     nodes: Vec<Node>,
-    forks: Forks,
+    pub forks: Forks,
     slot: Slot,
     partitioned_blocks: VecDeque<(ID, Slot)>,
     oc_slots: HashSet<Slot>,
