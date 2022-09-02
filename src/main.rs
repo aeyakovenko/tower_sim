@@ -3,9 +3,10 @@ use rand::Rng;
 use rand::SeedableRng;
 use tower_sim::network;
 use tower_sim::tower::DEPTH;
+use tower_sim::bank::NUM_NODES;
 
 fn main() {
-    partition_test_1()
+    four_partitions()
 }
 
 fn partition_test_1() {
@@ -20,6 +21,7 @@ fn partition_test_1() {
     //                                  \ 37 - 38 -39 ... M
     //In this example you take the primary subcomittee and divide it into four groups 66, 32, 1_A, and 1_B
     let partitions = [(0, 666), (666, 998), (998, 999), (999, 1000)];
+    assert_eq!(NUM_NODES, 1000);
 
     //1. The 1A group votes on slots 0 to 31, so its root stays 0
     network.partition_step(&partitions, &[false, false, true, false], 0);
