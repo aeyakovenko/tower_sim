@@ -38,6 +38,7 @@ impl Network {
         active: &[bool],
         block_producer_ix: usize,
     ) {
+        self.slot = self.slot + 1;
         self.repair_partitions(partitions, active);
         self.vote(partitions, active);
         let block_producer = &self.nodes[block_producer_ix];
@@ -80,11 +81,11 @@ impl Network {
     pub fn step(&mut self, num_partitions: usize) {
         let block_producer_ix = hash(self.slot) as usize % self.nodes.len();
         let mut partitions = vec![];
-        for i in 1..num_partitions {
+        for i in 0..num_partitions {
             let num = NUM_NODES / num_partitions;
             assert!(num > 0, "invalid number of partitions");
-            let min = (i - 1) * num;
-            let max = std::cmp::max(NUM_NODES, i * num);
+            let min = i * num;
+            let max = std::cmp::min(NUM_NODES, (i + 1) * num);
             partitions.push((min, max));
         }
         let mut active = vec![];

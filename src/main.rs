@@ -1,9 +1,9 @@
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
+use tower_sim::bank::NUM_NODES;
 use tower_sim::network;
 use tower_sim::tower::DEPTH;
-use tower_sim::bank::NUM_NODES;
 
 fn main() {
     four_partitions()
