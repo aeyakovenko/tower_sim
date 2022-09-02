@@ -13,7 +13,6 @@ pub struct Network {
     nodes: Vec<Node>,
     forks: Forks,
     slot: Slot,
-    num_partitions: usize,
     partitioned_blocks: VecDeque<(ID, Slot)>,
     oc_slots: HashSet<Slot>,
 }
@@ -27,51 +26,22 @@ impl Default for Network {
             forks: Forks::default(),
             nodes,
             slot: 0,
-            num_partitions: 0,
             partitioned_blocks: VecDeque::new(),
             oc_slots: HashSet::new(),
         }
     }
 }
 impl Network {
-    fn check_same_partition(num_partitions: usize, a: ID, b: ID) -> bool {
-        num_partitions == 0 || (a % num_partitions == b % num_partitions)
-    }
-    pub fn create_partitions(&mut self, num: usize) {
-        self.num_partitions = num;
-    }
-    pub fn repair_partitions(&mut self, new_partitions: usize) {
-        for (block_producer_ix, block) in &self.partitioned_blocks {
-            self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
-                if Self::check_same_partition(new_partitions, *block_producer_ix, i) {
-                    n.set_active_block(*block);
-                }
-            });
-        }
-        self.num_partitions = new_partitions;
-    }
-    pub fn lowest_root(&self) -> Vote {
-        self.forks.lowest_root
-    }
-
     pub fn partition_step(
         &mut self,
         partitions: &[(usize, usize)],
         active: &[bool],
         block_producer_ix: usize,
     ) {
-        let num_dead_partitions = active.iter().map(|x| !(*x) as usize).sum();
-        for (a, (s, e)) in active.iter().zip(partitions) {
-            if a {
-                self.nodes[s..e]
-                    .par_iter_mut()
-                    .for_each(|n| n.vote(&self.forks));
-            }
-        }
-        let block_producer_ix = hash(self.slot) as usize % self.nodes.len();
+        self.repair_partitions(partitions, active);
+        self.vote(partitions, active);
         let block_producer = &self.nodes[block_producer_ix];
 
-        &self.nodes[block_producer_ix];
         let votes: Vec<_> = self
             .nodes
             .iter()
@@ -93,6 +63,7 @@ impl Network {
                 n.set_active_block(self.slot);
             }
         });
+        let num_dead_partitions: usize = active.iter().map(|x| !(*x) as usize).sum();
         if num_dead_partitions > 0 {
             self.partitioned_blocks
                 .push_back((block_producer_ix, block.slot));
@@ -106,43 +77,68 @@ impl Network {
         }
     }
 
-    pub fn step(&mut self) {
-        self.slot = self.slot + 1;
-        println!("slot {} voting", self.slot);
-        self.nodes.par_iter_mut().for_each(|n| n.vote(&self.forks));
+    pub fn step(&mut self, num_partitions: usize) {
         let block_producer_ix = hash(self.slot) as usize % self.nodes.len();
-        let block_producer = &self.nodes[block_producer_ix];
-        let votes: Vec<_> = self
-            .nodes
-            .iter()
-            .enumerate()
-            .filter_map(|(i, n)| {
-                if !Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
-                    return None;
-                }
-                let votes = n.votes();
-                Some((i, votes))
-            })
-            .collect();
-        let block = block_producer.make_block(self.slot, votes);
-        self.forks.apply(&block);
-        let oc_slots = self.forks.fork_map.get(&block.slot).unwrap().oc_slots();
-        self.oc_slots.extend(&oc_slots);
-        self.nodes.iter_mut().enumerate().for_each(|(i, n)| {
-            if Self::check_same_partition(self.num_partitions, block_producer_ix, i) {
-                n.set_active_block(self.slot);
+        let mut partitions = vec![];
+        for i in 1..num_partitions {
+            let num = NUM_NODES / num_partitions;
+            assert!(num > 0, "invalid number of partitions");
+            let min = (i - 1) * num;
+            let max = std::cmp::max(NUM_NODES, i * num);
+            partitions.push((min, max));
+        }
+        let mut active = vec![];
+        for (s, e) in &partitions {
+            if block_producer_ix >= *s && block_producer_ix < *e {
+                active.push(true);
+            } else {
+                active.push(false);
             }
-        });
-        if self.num_partitions > 0 {
-            self.partitioned_blocks
-                .push_back((block_producer_ix, block.slot));
         }
-        let lowest_root = self.lowest_root().slot;
-        self.partitioned_blocks.retain(|(_, b)| *b >= lowest_root);
-        println!("OC SLOTS {:?}", self.oc_slots);
-        self.oc_slots.retain(|s| !self.forks.roots.contains(s));
-        for s in &self.oc_slots {
-            assert!(*s >= lowest_root, "OC failed {}", *s);
+        self.partition_step(&partitions, &active, block_producer_ix);
+    }
+
+    fn check_same_partition(partitions: &[(usize, usize)], active: &[bool], a: ID, b: ID) -> bool {
+        if partitions.is_empty() {
+            return true;
         }
+        let mut a_active = false;
+        let mut b_active = false;
+        for (r, (s, e)) in active.iter().zip(partitions) {
+            if *r && a >= *s && a < *e {
+                a_active = true;
+            }
+            if *r && b >= *s && b < *e {
+                b_active = true;
+            }
+            if a_active && b_active {
+                return true;
+            }
+        }
+        a_active && b_active
+    }
+
+    fn repair_partitions(&mut self, partitions: &[(usize, usize)], active: &[bool]) {
+        for (bp, slot) in &self.partitioned_blocks {
+            for (id, n) in self.nodes.iter_mut().enumerate() {
+                if Self::check_same_partition(partitions, active, *bp, id) {
+                    n.set_active_block(*slot);
+                }
+            }
+        }
+    }
+
+    fn vote(&mut self, partitions: &[(usize, usize)], active: &[bool]) {
+        for (r, (s, e)) in active.iter().zip(partitions) {
+            if *r {
+                self.nodes[*s..*e]
+                    .par_iter_mut()
+                    .for_each(|n| n.vote(&self.forks));
+            }
+        }
+    }
+
+    pub fn lowest_root(&self) -> Vote {
+        self.forks.lowest_root
     }
 }
