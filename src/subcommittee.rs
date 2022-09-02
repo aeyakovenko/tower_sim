@@ -98,7 +98,6 @@ impl Subcommittee {
         for _ in 0..SUBCOMMITTEE_SIZE {
             set.insert(rng.gen_range(0..NUM_NODES));
         }
-        println!("SET {:?}", set);
         set
     }
 

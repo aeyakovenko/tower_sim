@@ -6,7 +6,7 @@ use tower_sim::network;
 use tower_sim::tower::DEPTH;
 
 fn main() {
-    four_partitions()
+    partition_test_1()
 }
 
 fn partition_test_1() {
@@ -15,6 +15,7 @@ fn partition_test_1() {
     for _ in 0..(DEPTH * 2) {
         network.step(1);
     }
+    println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //                                       /---33 - 34 -35 -36
     // 0 -> 1 -> 2 -> 3 ->... -> 31-> 32
@@ -22,14 +23,19 @@ fn partition_test_1() {
     //In this example you take the primary subcomittee and divide it into four groups 66, 32, 1_A, and 1_B
     let partitions = [(0, 666), (666, 998), (998, 999), (999, 1000)];
     assert_eq!(NUM_NODES, 1000);
+    println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //1. The 1A group votes on slots 0 to 31, so its root stays 0
     network.partition_step(&partitions, &[false, false, true, false], 0);
+    println!("LOWEST ROOT {:?}", network.lowest_root());
+
     //2. The 66  group votes 1 to 32 so makes new root at 1
     for _ in 0..DEPTH - 2 {
         network.partition_step(&partitions, &[true, false, true, false], 0);
+        println!("LOWEST ROOT {:?}", network.lowest_root());
     }
     network.partition_step(&partitions, &[true, false, false, false], 0);
+    println!("LOWEST ROOT {:?}", network.lowest_root());
     //3. All these votes have landed in both forks
 
     //4. Now after the fork,  1B group starts voting on the top fork on slots 0 -> 36, so  it's rooting common ancestors 0 -> 32, updating the SMJRwhen it finally roots 1
@@ -37,16 +43,21 @@ fn partition_test_1() {
     network.partition_step(&partitions, &[false, false, false, true], 999);
     network.partition_step(&partitions, &[false, false, false, true], 999);
     network.partition_step(&partitions, &[false, false, false, true], 999);
+    println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //5. Meanwhile the 32 group at some point starts voting on the bottom fork, making that the heaviest fork
     for _ in 0..512 {
         network.partition_step(&partitions, &[false, true, false, false, false], 666);
+        println!("LOWEST ROOT {:?}", network.lowest_root());
     }
+    let root = network.lowest_root();
 
     //partitions reparied
     for _ in 0..512 {
         network.step(1);
+        println!("LOWEST ROOT {:?}", network.lowest_root());
     }
+    assert!(network.lowest_root().slot > root.slot);
 }
 
 fn four_partitions() {
