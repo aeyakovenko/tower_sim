@@ -31,6 +31,7 @@ fn partition_test_1() {
         (primary[max - 2], primary[max - 1]),
         (primary[max - 1], primary[max - 1] + 1),
     ];
+    println!("PARTITIONS {:?} {:?}", partitions, primary);
     println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //1. The 1A group votes on slots 0 to 31, so its root stays 0
