@@ -21,12 +21,12 @@ fn partition_test_1() {
     // 0 -> 1 -> 2 -> 3 ->... -> 31-> 32
     //                                  \ 37 - 38 -39 ... M
     //In this example you take the primary subcomittee and divide it into four groups 66, 32, 1_A, and 1_B
-    let partitions = [(0, 600), (600, 920), (920, 960), (960, 1000)];
+    let partitions = [(0, 660), (660, 980), (980, 990), (990, 1000)];
     assert_eq!(NUM_NODES, 1000);
     println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //1. The 1A group votes on slots 0 to 31, so its root stays 0
-    network.partition_step(&partitions, &[false, false, true, false], 0);
+    network.partition_step(&partitions, &[false, false, true, false], 980);
     println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //2. The 66  group votes 1 to 32 so makes new root at 1
@@ -40,16 +40,16 @@ fn partition_test_1() {
 
     //4. Now after the fork,  1B group starts voting on the top fork on slots 0 -> 36, so  it's rooting common ancestors 0 -> 32, updating the SMJRwhen it finally roots 1
     network.repair_partitions(&partitions, &[true, false, false, true]);
-    network.partition_step(&partitions, &[false, false, false, true], 960);
-    network.partition_step(&partitions, &[false, false, false, true], 960);
-    network.partition_step(&partitions, &[false, false, false, true], 960);
-    network.partition_step(&partitions, &[false, false, false, true], 960);
+    network.partition_step(&partitions, &[false, false, false, true], 990);
+    network.partition_step(&partitions, &[false, false, false, true], 990);
+    network.partition_step(&partitions, &[false, false, false, true], 990);
+    network.partition_step(&partitions, &[false, false, false, true], 990);
     println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //5. Meanwhile the 32 group at some point starts voting on the bottom fork, making that the heaviest fork
     network.repair_partitions(&partitions, &[true, true, false, false]);
     for _ in 0..512 {
-        network.partition_step(&partitions, &[false, true, false, false], 600);
+        network.partition_step(&partitions, &[false, true, false, false], 660);
         println!("LOWEST ROOT {:?}", network.lowest_root());
     }
     let root = network.lowest_root();
