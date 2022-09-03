@@ -20,6 +20,7 @@ pub struct Subcommittee {
     pub parent_num_super_roots: usize,
     pub super_root: Slot,
     pub parent_super_root: Slot,
+    pub last_oc: Slot,
 }
 
 #[derive(PartialEq)]
@@ -39,6 +40,7 @@ impl Default for Subcommittee {
             parent_num_super_roots: 0,
             primary,
             secondary,
+            last_oc: 0,
         }
     }
 }
@@ -60,6 +62,7 @@ impl Subcommittee {
             parent_num_super_roots: self.num_super_roots,
             primary: self.primary.clone(),
             secondary: self.secondary.clone(),
+            last_oc: self.last_oc,
         }
     }
     pub fn init_child(&mut self, parent: &Self) {
@@ -78,13 +81,14 @@ impl Subcommittee {
         }
     }
 
-    pub fn freeze(&mut self, primary: Slot, secondary: Slot) {
+    pub fn freeze(&mut self, primary: Slot, secondary: Slot, oc_slot: Slot) {
         if self.super_root > primary {
             println!("SR {} ahead of primary {}", self.super_root, primary);
         }
         let super_root = core::cmp::min(primary, secondary);
-        if self.super_root < super_root {
+        if self.super_root < super_root && oc_slot > self.last_oc {
             self.super_root = super_root;
+            self.last_oc = oc_slot;
             if self.super_root != self.parent_super_root {
                 self.num_super_roots = self.num_super_roots + 1;
                 println!("NEW SR: {}", self.super_root);

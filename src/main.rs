@@ -6,13 +6,14 @@ use tower_sim::network;
 use tower_sim::tower::DEPTH;
 
 fn main() {
-    partition_test_1()
+    //partition_test_1()
+    four_partitions()
 }
 
 fn partition_test_1() {
     let mut network = network::Network::default();
     //warmup
-    for _ in 0..(DEPTH * 2) {
+    for _ in 0..DEPTH {
         network.step(1);
     }
     println!("LOWEST ROOT {:?}", network.lowest_root());
@@ -24,7 +25,7 @@ fn partition_test_1() {
     let mut primary: Vec<_> = network.forks.latest_primary().into_iter().collect();
     primary.sort();
     let max = primary.len();
-    let big = 2 * primary.len() / 3;
+    let big = 2 * primary.len() / 3 - 1;
     let partitions = [
         (primary[0], primary[big]),
         (primary[big], primary[max - 2]),
@@ -35,16 +36,12 @@ fn partition_test_1() {
     println!("LOWEST ROOT {:?}", network.lowest_root());
 
     //1. The 1A group votes on slots 0 to 31, so its root stays 0
-    let bp_1a = partitions[2].0;
-    network.partition_step(&partitions, &[false, false, true, false], bp_1a);
-    println!("LOWEST ROOT {:?}", network.lowest_root());
-
-    //2. The 66  group votes 1 to 32 so makes new root at 1
     let bp_66 = partitions[0].0;
-    for _ in 0..DEPTH - 2 {
-        network.partition_step(&partitions, &[true, false, true, false], bp_66);
-        println!("LOWEST ROOT {:?}", network.lowest_root());
-    }
+    let bp_1a = partitions[3].0;
+    //2. The 66  group votes 1 to 32 so makes new root at 1-4
+    network.partition_step(&partitions, &[true, false, false, false], bp_66);
+    network.partition_step(&partitions, &[true, false, false, false], bp_66);
+    network.partition_step(&partitions, &[true, false, false, false], bp_66);
     network.partition_step(&partitions, &[true, false, false, false], bp_66);
     println!("LOWEST ROOT {:?}", network.lowest_root());
     //3. All these votes have landed in both forks
@@ -52,6 +49,14 @@ fn partition_test_1() {
     //4. Now after the fork,  1B group starts voting on the top fork on slots 0 -> 36, so  it's rooting common ancestors 0 -> 32, updating the SMJRwhen it finally roots 1
     let bp_1b = partitions[3].0;
     network.repair_partitions(&partitions, &[true, false, false, true]);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
+    network.partition_step(&partitions, &[false, false, false, true], bp_1b);
     network.partition_step(&partitions, &[false, false, false, true], bp_1b);
     network.partition_step(&partitions, &[false, false, false, true], bp_1b);
     network.partition_step(&partitions, &[false, false, false, true], bp_1b);

@@ -75,7 +75,8 @@ impl Bank {
         }
         let primary = self.primary_super_root().slot;
         let secondary = self.secondary_super_root().slot;
-        self.subcom.freeze(primary, secondary);
+        let oc_slot = self.oc_slots().into_iter().max().unwrap_or(0);
+        self.subcom.freeze(primary, secondary, oc_slot);
         self.frozen = true;
     }
 

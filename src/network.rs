@@ -138,7 +138,8 @@ impl Network {
         for (r, (s, e)) in active.iter().zip(partitions) {
             if *r {
                 self.nodes[*s..*e]
-                    .par_iter_mut()
+                    //.par_iter_mut()
+                    .iter_mut()
                     .for_each(|n| n.vote(&self.forks));
             }
         }
