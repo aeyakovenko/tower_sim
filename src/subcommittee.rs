@@ -86,13 +86,17 @@ impl Subcommittee {
             println!("SR {} ahead of primary {}", self.super_root, primary);
         }
         let super_root = core::cmp::min(primary, secondary);
+        //activate the super root
         if self.super_root < super_root && oc_slot > self.last_oc {
             self.super_root = super_root;
-            self.last_oc = oc_slot;
             if self.super_root != self.parent_super_root {
                 self.num_super_roots = self.num_super_roots + 1;
                 println!("NEW SR: {}", self.super_root);
             }
+        }
+        //super root is activated on a new oc_slot only
+        if oc_slot > self.last_oc {
+            self.last_oc = oc_slot;
         }
     }
 
